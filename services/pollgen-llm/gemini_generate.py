@@ -16,24 +16,38 @@ collection = db.pollquestions
 
 # Prompt Template
 TEMPLATE = """
-Based STRICTLY on the following educational content spoken by the instructor, generate {num_questions} high-quality {difficulty} {type} questions.
+Based STRICTLY on the educational content provided below, generate {num_questions} high-quality, challenging, and well-structured {difficulty} {type} questions.
 
-CONTEXT:
+CONTEXT (Instructor's explanation):
 {context}
 
-Each question should follow this JSON format:
+REQUIREMENTS:
+1. All questions must be based ONLY on the content provided in the context above.
+2. Design questions that test conceptual understanding, real-world application, and critical thinking — not just simple recall.
+3. Each question must have exactly 4 answer choices (A–D) with only one correct answer.
+4. Avoid vague, overly generic, or factually ungrounded questions.
+5. Use precise academic language, and focus on key learning objectives conveyed in the instructor’s explanation.
+6. Include conceptual tags and concise explanations for every question.
+
+FORMAT your response strictly as a **valid JSON array**:
 [
   {{
-    "question": "...",
-    "options": ["A) ...", "B) ...", "C) ...", "D) ..."],
+    "question": "Pose a meaningful and insightful question here.",
+    "options": ["A) Option 1", "B) Option 2", "C) Option 3", "D) Option 4"],
     "correct_answer": "A",
-    "explanation": "...",
+    "explanation": "Brief explanation of why this answer is correct.",
     "difficulty": "{difficulty}",
-    "concept": "..."
-  }}
+    "concept": "Main topic or concept being assessed"
+  }},
+  ...
 ]
-Ensure strict JSON output only.
+
+IMPORTANT:
+- Output must be ONLY a raw JSON array (no markdown, comments, or formatting like triple backticks).
+- Ensure all required fields are present: "question", "options", "correct_answer", "explanation", "difficulty", and "concept".
+- The response MUST be strictly parseable JSON. Any missing field or format error will invalidate the response.
 """
+
 def generate_questions_with_gemini(transcript, settings):
     model = genai.GenerativeModel("gemini-2.0-flash")
     prompt = TEMPLATE.format(
