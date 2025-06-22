@@ -91,6 +91,88 @@ pip install -r requirements.gpu.txt --extra-index-url https://download.pytorch.o
 This will install `torch`, `torchaudio`, and `torchvision` with CUDA 12.1 support.
 Make sure your system has the correct CUDA runtime installed.
 
+-----
+
+### 🔧 `pollgen-llm` Environment Setup
+
+1. **Navigate to the Pollgen-llm service folder:**
+
+```bash
+cd services/pollgen-llm
+
+```
+
+2.  **Create and activate a Python virtual environment:**
+    
+
+```bash
+# Windows
+python -m venv pollgenenv
+pollgenenv\Scripts\activate
+
+# macOS/Linux
+python3 -m venv pollgenenv
+source pollgenenv/bin/activate
+
+```
+
+3.  **Install the required dependencies:**
+    
+
+```bash
+pip install -r requirements.txt
+
+```
+### 🔑 Setting up Gemini API Key
+
+1.  Go to the official Gemini developer page: [https://ai.google.dev/](https://ai.google.dev/)
+    
+2.  Sign in with your Google account and click **“Get API key”**
+    
+3.  Copy the API key and paste it into your `.env` file for `pollgen-llm` as:
+    
+
+```env
+GEMINI_API_KEY=<your key>
+
+```
+
+
+### 🧠 Setting up Local LLM (Ollama)
+
+1.  **Download and Install Ollama**
+    
+    -   Visit [https://ollama.com](https://ollama.com/) and download the installer.
+        
+    -   Follow the setup wizard to complete installation.
+     >**Once installed, Ollama will run as a background service and can be accessed via the Command Prompt (cmd) or PowerShell.**
+        
+2.  **Verify Ollama Installation**
+    
+
+```bash
+ollama --version
+
+```
+
+3.  **Pull Required Models**
+    
+
+```bash
+ollama pull llama3.2
+ollama pull mxbai-embed-large
+
+```
+
+4.  **(Optional) Confirm Model Names**
+    
+
+```bash
+ollama list
+
+```
+
+
 ## 🔧 .env Configuration
 
 ### `apps/backend/.env`
@@ -126,7 +208,15 @@ WHISPER_SERVICE_PORT=8000
 # 6. large-v2
 # 7. large-v3
 ```
+### `services/pollgen-llm/.env`
 
+```
+GEMINI_API_KEY=<Add your Gemini API>
+MONGO_URI="mongodb://localhost:27017"
+HOME="<Add your Home Directory where you have installed the Ollama>"
+#Example: "C:\Users\keerthana"
+
+```
 ### Global Prerequisites
 **Navigate to the root directory:**
 
