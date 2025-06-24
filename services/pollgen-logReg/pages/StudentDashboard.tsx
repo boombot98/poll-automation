@@ -10,7 +10,7 @@ interface Poll {
 
 const StudentDashboard: React.FC = () => {
   const { meetingId } = useParams<{ meetingId: string }>();
-  const { socket } = useAuth(); // ✅ Use shared socket from context
+  const { socket } = useAuth(); 
   const navigate = useNavigate();
 
   const [poll, setPoll] = useState<Poll | null>(null);
