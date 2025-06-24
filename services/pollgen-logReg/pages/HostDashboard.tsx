@@ -8,17 +8,14 @@ import Icon from '../components/Icon';
 const HostDashboard: React.FC = () => {
   const [meetingId, setMeetingId] = useState<string | null>(null);
   const [hasCopied, setHasCopied] = useState(false);
-  const { user, socket } = useAuth(); // Get shared socket from context
+  const { user, socket } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Wait for the shared socket to be ready
     if (!socket) return;
 
-    // Emit the event to create a meeting right away
     socket.emit('host-create-meeting');
 
-    // Define named handlers for listeners
     const handleMeetingCreated = (id: string) => {
       setMeetingId(id);
     };
@@ -30,8 +27,7 @@ const HostDashboard: React.FC = () => {
     socket.on('meeting-created', handleMeetingCreated);
     socket.on('student-joined', handleStudentJoined);
 
-    // CRITICAL: Cleanup function now ONLY removes the listeners for this specific page.
-    // It does NOT disconnect the socket.
+
     return () => {
       socket.off('meeting-created', handleMeetingCreated);
       socket.off('student-joined', handleStudentJoined);
