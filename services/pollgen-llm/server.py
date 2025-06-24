@@ -143,23 +143,35 @@ def generate_from_transcript():
         return JSONResponse({"error": "Invalid question source"}, status_code=400)
 
     questions = generator(transcript_data["text"], current_settings)
-    questions = convert_object_ids(questions)  
+     
 
     if not questions:
         return JSONResponse({"error": "Question generation failed"}, status_code=500)
-
-    try:
-        mongo_collection.insert_one({
+    now = datetime.utcnow()
+    questions_to_insert = []
+    for q in raw_questions:
+        enriched_question = {
+            "question": q.get("question"),
+            "options": q.get("options"),
+            "correct_answer": q.get("correct_answer"),
+            "explanation": q.get("explanation"),
+            "difficulty": q.get("difficulty"),
+            "concept": q.get("concept"),
             "meeting_id": current_settings["meeting_id"],
-            "questions": questions,
-            "generated_at": datetime.utcnow()
-        })
+            "created_at": now,
+            "is_active": True,
+            "is_approved": False
+        }
+        questions_to_insert.append(enriched_question)
+        
+    try:
+      mongo_collection.insert_many(questions_to_insert) 
     except Exception as e:
         print(f"Failed to save to MongoDB: {e}")
     end=datetime.now()
     print(end-start)
     return {
-        "message": "Questions generated successfully",
-        "count": len(questions),
-        "questions": questions
+       "message": "Questions generated and saved successfully",
+        "count": len(questions_to_insert),
+        "questions": convert_object_ids(questions_to_insert)
     }
