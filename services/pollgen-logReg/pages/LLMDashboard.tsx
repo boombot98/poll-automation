@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext'; // ✅ Shared socket
+import { useAuth } from '../context/AuthContext'; 
 import toast from 'react-hot-toast';
 import { FaArrowLeft, FaMagic } from 'react-icons/fa';
 import Icon from '../components/Icon';
@@ -13,7 +13,7 @@ const LLMDashboard = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const meetingId = location.state?.meetingId;
-  const { socket } = useAuth(); // ✅ From context
+  const { socket } = useAuth(); 
 
   const [topic, setTopic] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
@@ -30,7 +30,6 @@ const LLMDashboard = () => {
       return;
     }
 
-    // Only set up listeners (host already joined)
     const handleUpdateResults = (newResults: PollResults) => setResults(newResults);
     const handleUpdateCount = (count: number) => setStudentCount(count);
     const handlePollEnded = () => {
@@ -58,7 +57,6 @@ const LLMDashboard = () => {
     }
     setIsGenerating(true);
 
-    // Simulated response — you can replace this with real OpenAI call if needed
     setTimeout(() => {
       setQuestion(`What is the main advantage of ${topic}?`);
       setOptions([
