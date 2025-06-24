@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext'; // ✅ Using shared socket from context
+import { useAuth } from '../context/AuthContext'; 
 import toast from 'react-hot-toast';
 import { FaPlus, FaTrash, FaArrowLeft } from 'react-icons/fa';
 import Icon from '../components/Icon';
@@ -13,7 +13,7 @@ const ApiPollingPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const meetingId = location.state?.meetingId;
-  const { socket } = useAuth(); // ✅ Shared socket from context
+  const { socket } = useAuth(); 
 
   const [question, setQuestion] = useState('');
   const [options, setOptions] = useState(['', '']);
