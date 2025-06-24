@@ -52,3 +52,46 @@ export default tseslint.config({
   },
 })
 ```
+# Automatic Poll Generation System 🎯
+
+This is the **frontend** for the Automatic Poll Generation and Participant Tracking System, part of a monorepo setup with React + TypeScript + Vite. The project includes automatic poll generation from Zoom classes using AI, live leaderboard, participant tracking, and dashboards.
+
+> ✅ This sub-package lives in `apps/frontend/` of the monorepo.
+
+---
+
+## 📦 Tech Stack
+
+- ⚛️ **React 19**
+- ⚡ **Vite 6**
+- ✨ **TypeScript**
+- 🎨 **TailwindCSS**
+- 🔁 **React Router**
+- 📊 **Recharts**
+- 🧩 **Framer Motion**
+- ✅ **React Hook Form**
+- 💡 ESLint + Type-Aware Rules
+
+---
+
+## 🚀 Features (Developed by Frontend Team)
+
+- 🔐 Login, Register, and Forgot Password pages
+- 📊 Host & Student Dashboards
+- 🧠 AI-Generated Question Feed (via backend AI service)
+- 🗣️ Audio Capture UI (for speech input)
+- 👥 Participants tracking
+- 🥇 Live Leaderboard
+- 📈 Reports and analytics
+- ⚙️ Host Settings + Orbital Navigation
+- 💎 Custom reusable components (`GlassCard`, `Sidebar`, `DashboardLayout` etc.)
+
+🛠 Setup Instructions
+📦 Install dependencies
+      pnpm install
+
+🧪 Run dev server
+      pnpm dev
+
+👨‍💻 Frontend Team
+We are a 7-member frontend team contributing via pull requests to this sub-package under apps/frontend/.
