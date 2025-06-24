@@ -6,7 +6,7 @@
   "scripts": {
     "setup": "python -m venv pollgenenv",
     "install-deps": "pollgenenv\\Scripts\\pip install -r requirements.txt",
-    "dev1": "pollgenenv\\Scripts\\python -m uvicorn server:app --host 0.0.0.0 --port 5001 --reload",
+    "dev": "pollgenenv\\Scripts\\python -m uvicorn server:app --host 0.0.0.0 --port 5001 --reload",
     "test": "pollgenenv\\Scripts\\python -m pytest tests"
   }
 }
