@@ -5,7 +5,7 @@ import toast from 'react-hot-toast';
 
 const StudentJoinPage: React.FC = () => {
   const [meetingId, setMeetingId] = useState('');
-  const { user, socket } = useAuth(); // ✅ Use shared socket from context
+  const { user, socket } = useAuth(); 
   const navigate = useNavigate();
 
   useEffect(() => {
