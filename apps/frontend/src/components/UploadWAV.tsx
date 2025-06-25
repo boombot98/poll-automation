@@ -14,13 +14,30 @@ const LiveTranscriptionComponent: React.FC = () => {
 
     const handleTranscription = (data: TranscriptionResult) => {
         console.log("Received transcription:", data.text);
-        // You'll likely want to display these incrementally
-        // For real-time updates, you might append to a single mutable string
-        // or replace the last entry if it's a partial update.
-        // For now, simply adding new lines:
         setTranscriptions(prev => [...prev, data.text]);
-        // Logic for poll generation based on data.text can go here
-        // e.g., check for keywords: if (data.text.toLowerCase().includes("poll")) { triggerPoll(); }
+        sendTranscriptToServer(data.text);
+    };
+
+    const sendTranscriptToServer = async (text: string) => {
+    try {
+        const response = await fetch('/api/transcripts', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                meetingId,
+                speaker,
+                transcript: text,
+                timestamp: new Date().toISOString(), 
+                }),
+            });
+            if (!response.ok) {
+                console.error("Failed to send transcript:", await response.text());
+            }
+        } catch (err) {
+            console.error("Error sending transcript:", err);
+        }
     };
 
     const handleStreamEnd = () => {
