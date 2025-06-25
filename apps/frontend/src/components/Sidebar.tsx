@@ -1,5 +1,5 @@
 import { useRef, useEffect, useState } from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 
 import {
@@ -19,10 +19,16 @@ import { useAuth } from '../contexts/AuthContext';
 const Sidebar = () => {
   const { logout } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
 
   const navRef = useRef<HTMLDivElement>(null);
   const activeItemRef = useRef<HTMLDivElement>(null);
+
+  const handleLogout = () => {
+    logout();
+    navigate('/'); 
+  };
 
   useEffect(() => {
     if (activeItemRef.current && navRef.current) {
@@ -36,10 +42,10 @@ const Sidebar = () => {
 
   const menuItems = [
     { path: '/host', icon: Home, label: 'Dashboard' },
+    { path: '/host/create-poll', icon: FileText, label: 'Create Poll Session' },
     { path: '/host/audio', icon: Mic, label: 'Audio Capture' },
     { path: '/host/ai-questions', icon: Brain, label: 'AI Questions' },
     { path: '/host/create-manual-poll', icon: PlusSquare, label: 'Create Manual Poll' },
-    { path: '/host/create-poll', icon: FileText, label: 'Create Poll Session' },
     { path: '/host/participants', icon: Users, label: 'Participants' },
     { path: '/host/leaderboard', icon: Trophy, label: 'Leaderboard' },
     { path: '/host/reports', icon: FileText, label: 'Reports' },
@@ -106,7 +112,7 @@ const Sidebar = () => {
           );
         })}
         <button
-          onClick={logout}
+          onClick={handleLogout}
           className="flex items-center w-full px-4 py-3 rounded-lg text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-all duration-200 font-medium tracking-wide mt-2"
         >
           <LogOut className="w-5 h-5 mr-3" />
