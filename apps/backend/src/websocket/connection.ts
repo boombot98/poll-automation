@@ -1,97 +1,135 @@
-// connection.ts
-import { WebSocketServer, WebSocket } from 'ws'; // Make sure WebSocket is imported for typing
-import { handleSocketMessage, removeConnectionMeta } from './handlers'; // <-- Import removeConnectionMeta
+// apps/backend/src/websocket/connection.ts
+import { WebSocketServer, WebSocket } from 'ws';
+import * as http from 'http'; // Import http module for the Server type
+import { SessionMeta } from '@shared/types'; // Assuming SessionMeta is defined in your shared types
+import { handleSocketMessage, handleSocketClose, handleSocketError, handleWhisperMessage, handleWhisperClose, handleWhisperError } from './handlers'; // Import handlers
 
-// Define a type for WebSocket with an 'isAlive' property
+// Define SessionMeta if it's not in @shared/types or if you prefer to define it locally
+// export interface SessionMeta {
+//     meetingId: string;
+//     speaker: string;
+//     whisperWs: WebSocket | null;
+// }
+
+// --- ConnectionStore Class (Remains the same as previous correction) ---
+class ConnectionStore {
+    private sessions = new Map<WebSocket, SessionMeta>();
+    private whisperToClientMap = new Map<WebSocket, WebSocket>(); // Maps Whisper WS to Client WS
+
+    setSessionMeta(clientWs: WebSocket, meta: SessionMeta) {
+        this.sessions.set(clientWs, meta);
+        if (meta.whisperWs) {
+            this.whisperToClientMap.set(meta.whisperWs, clientWs);
+        }
+    }
+
+    getSessionMeta(clientWs: WebSocket): SessionMeta | undefined {
+        return this.sessions.get(clientWs);
+    }
+
+    removeSessionMeta(clientWs: WebSocket) {
+        const meta = this.sessions.get(clientWs);
+        if (meta && meta.whisperWs) {
+            this.whisperToClientMap.delete(meta.whisperWs);
+        }
+        this.sessions.delete(clientWs);
+    }
+
+    updateSessionWhisperWs(clientWs: WebSocket, whisperWs: WebSocket) {
+        const meta = this.sessions.get(clientWs);
+        if (meta) {
+            if (meta.whisperWs) {
+                this.whisperToClientMap.delete(meta.whisperWs);
+            }
+            meta.whisperWs = whisperWs;
+            this.whisperToClientMap.set(whisperWs, clientWs);
+            // No need to set this.sessions.set(clientWs, meta) again if 'meta' is a reference
+            // But it's safer if you're unsure how TS handles mutations of objects in Maps
+            // For now, assume direct mutation of the object fetched by get() is sufficient.
+        } else {
+            console.warn(`[ConnectionStore] Attempted to update whisperWs for non-existent clientWs.`);
+        }
+    }
+
+    findSessionMetaByWhisperWs(whisperWs: WebSocket): SessionMeta | undefined {
+        const clientWs = this.whisperToClientMap.get(whisperWs);
+        if (clientWs) {
+            return this.sessions.get(clientWs);
+        }
+        return undefined;
+    }
+
+    size(): number {
+        return this.sessions.size;
+    }
+}
+
+export const connectionStore = new ConnectionStore(); // Export the singleton instance
+
+
+// --- WebSocket Server Setup Function (Reintroduced) ---
+// Define a type for WebSocket with an 'isAlive' property for heartbeat
 interface CustomWebSocket extends WebSocket {
     isAlive: boolean;
 }
 
-export const setupWebSocketServer = (server: import('http').Server) => {
+export const setupWebSocketServer = (server: http.Server) => {
     const wss = new WebSocketServer({ server });
 
-    // Store active connections for managing them (e.g., for ping/pong)
+    // Store active clients for managing heartbeats
     const clients = new Set<CustomWebSocket>();
 
-    wss.on('connection', (ws: CustomWebSocket) => { // Cast ws to CustomWebSocket
+    wss.on('connection', (ws: CustomWebSocket) => {
         console.log("[Backend WS] Client connected");
         clients.add(ws);
 
-        // --- START Heartbeat for individual client connection ---
-        ws.isAlive = true; // Initialize isAlive status for the new connection
+        // Heartbeat initialization for new connection
+        ws.isAlive = true;
         ws.on('pong', () => {
-            ws.isAlive = true; // Mark as alive when a pong is received
+            ws.isAlive = true;
         });
-        // --- END Heartbeat for individual client connection ---
 
-        ws.on('message', (data, isBinary) => {
-            console.log(`[Backend WS] Message received (${isBinary ? "binary" : "text"})`);
+        ws.on('message', (data: Buffer | string) => { // data can be Buffer (binary) or string (text)
+            console.log(`[Backend WS] Message received (${typeof data === 'string' ? "text" : "binary"})`);
             // Delegate message handling to handlers.ts
-            handleSocketMessage(ws, data, isBinary);
+            handleSocketMessage(ws, data);
         });
 
         ws.on('close', () => {
             console.log("[Backend WS] Client disconnected");
-            clients.delete(ws); // Remove this specific client from the set
-
-            // *** IMPORTANT ***
-            // Call the cleanup function from handlers.ts when a client disconnects.
-            // This ensures the associated Whisper connection is also closed and session data cleared.
-            removeConnectionMeta(ws);
+            clients.delete(ws);
+            // Delegate cleanup to handlers.ts
+            handleSocketClose(ws);
         });
 
-        ws.on('error', (err) => {
+        ws.on('error', (err: Error) => { // Error event is an actual Error object
             console.error("[Backend WS] Error:", err);
-            // Handle specific errors for this client connection
-            // Error typically leads to 'onclose', which will then trigger removeConnectionMeta
+            // Delegate error handling to handlers.ts
+            handleSocketError(ws, err);
         });
     });
 
-    // Add a handler for server-level errors if needed
-    wss.on('error', (error) => {
+    wss.on('error', (error: Error) => {
         console.error("[Backend WS] WebSocket Server error:", error);
     });
 
     console.log('[Backend WS] WebSocket server setup complete.');
 
-    // --- START Periodically check for dead connections (Heartbeat for all clients) ---
+    // --- Periodically check for dead connections (Heartbeat for all clients) ---
     const interval = setInterval(() => {
-        clients.forEach((ws: CustomWebSocket) => { // Iterate over all connected clients
-            if (ws.isAlive === false) { // If a client didn't respond to the last ping
+        clients.forEach((ws: CustomWebSocket) => {
+            if (ws.isAlive === false) {
                 console.log('[Backend WS] Terminating dead client connection.');
-                return ws.terminate(); // Force close the connection
+                ws.terminate(); // Force close the connection
+                return; // Go to next client
             }
-
             ws.isAlive = false; // Mark as not alive, expecting a pong
             ws.ping(); // Send a ping frame to the client
         });
     }, 30000); // Ping every 30 seconds
 
-    // When the WebSocket server itself is closed (e.g., due to process exit)
     wss.on('close', () => {
         console.log('[Backend WS] WebSocket server shutting down, clearing ping interval.');
-        clearInterval(interval); // Clear the heartbeat interval
-    });
-    // --- END Periodically check for dead connections ---
-
-    // Optional: Graceful shutdown of the entire Node.js server
-    // This part should generally be in your main application entry file (e.g., `apps/backend/src/index.ts` or `app.ts`)
-    // where `setupWebSocketServer` is called. However, it's included here for completeness
-    // if this file is the primary orchestration point.
-    process.on('SIGINT', () => {
-        console.log('[Backend WS] Received SIGINT. Shutting down WebSocket server gracefully...');
-        wss.close(() => {
-            console.log('[Backend WS] WebSocket server closed.');
-            // This is where you might also trigger cleanup for all active Whisper connections
-            // if they are managed globally rather than per-client.
-            // For per-client, removeConnectionMeta should handle it.
-            process.exit(0);
-        });
-        // Set a timeout to force exit if graceful shutdown takes too long
-        setTimeout(() => {
-            console.warn('[Backend WS] Forced exit after graceful shutdown timeout.');
-            clients.forEach(ws => ws.terminate()); // Terminate any remaining connections
-            process.exit(1);
-        }, 5000); // 5 seconds timeout
+        clearInterval(interval);
     });
 };

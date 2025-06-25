@@ -21,7 +21,13 @@
     "noUnusedParameters": true,
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true,
-    "noUncheckedSideEffectImports": true
+    "noUncheckedSideEffectImports": true,
+
+    /* Added for monorepo shared alias support */
+    "baseUrl": ".",
+    "paths": {
+      "@shared/types": ["../../shared/types/src"]
+    }
   },
   "include": ["src"]
 }
