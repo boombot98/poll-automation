@@ -1,42 +1,55 @@
+// shared\types\src\websocket.ts
+import type * as ws from 'ws';
+
 export type SpeakerRole = 'host' | 'participant';
 
-// Re-export MicrophoneStreamer's TranscriptionResult for consistency
 export interface TranscriptionResult {
-    type: 'transcription' | 'error' | 'status'; // Added 'error' and 'status' types from backend
+    type: 'transcription' | 'error' | 'status';
     meetingId: string;
-    speaker: string; // The backend sends 'speaker' as a string, not SpeakerRole for now. Keep consistent.
+    speaker: string; // This will now be the backend-generated unique speaker ID
     text: string;
     segment_start?: number; // Optional, as it might not always be present or relevant for partials
-    segment_end?: number;   // Optional
-    language?: string;      // Optional
+    segment_end?: number;    // Optional
+    language?: string;       // Optional
     is_final: boolean;
     message?: string; // For 'status' or 'error' messages from backend
 }
 
-// Keep if you specifically need a distinct type for audio chunk messages
-// (though the current frontend sends raw ArrayBuffer for audio)
-export interface AudioChunkMessage {
-    type: 'audio_chunk';
-    meetingId: string;
-    speaker: SpeakerRole;
-    audio: string; // base64 encoded (though frontend currently sends raw binary)
-}
-
-// It might be clearer to define specific message types for start/end signals:
+// Client sends this to initiate a session
 export interface StartMessage {
     type: 'start';
     meetingId: string;
-    speaker: string;
+    proposedSpeakerName?: string; // New: Client suggests a display name
 }
 
+// Client sends this to end a session
 export interface EndMessage {
     type: 'end';
     meetingId: string;
-    speaker: string;
+    // For 'end', the backend should primarily use the session's stored speakerId,
+    // so no need to explicitly send it from frontend here.
 }
 
-// Union type for all messages the backend might receive from frontend
-export type FrontendToServerMessage = StartMessage | EndMessage | ArrayBuffer; // ArrayBuffer for binary audio
+// Backend sends this back to the client to confirm session start and provide the assigned speakerId
+export interface StartConfirmationMessage {
+    type: 'status';
+    message: string;
+    meetingId: string;
+    speakerId: string; // The uniquely generated speaker ID for this session
+}
+
+
+// Union type for all JSON messages the frontend might send to backend
+// Note: Binary audio (ArrayBuffer) is sent directly, not as a JSON message type in this union
+export type FrontendToServerMessage = StartMessage | EndMessage;
 
 // Union type for all messages the frontend might receive from backend
-export type ServerToFrontendMessage = TranscriptionResult; // Backend only sends transcription or status/error
+export type ServerToFrontendMessage = TranscriptionResult | StartConfirmationMessage;
+
+export interface SessionMeta {
+  meetingId: string;
+  speaker: string;
+  whisperWs: ws.WebSocket | null;
+  audioBuffer?: Buffer[];
+}
+
