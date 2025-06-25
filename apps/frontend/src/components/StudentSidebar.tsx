@@ -3,35 +3,46 @@
 import type React from "react"
 import { Users, Trophy, History, User, Award, Settings, Bell, Home, LogOut, Link } from "lucide-react"
 import { useAuth } from "../contexts/AuthContext"
+import { useNavigate, useLocation } from "react-router-dom"
 
 interface StudentSidebarProps {
-  activeSection: string
-  onSectionChange: (section: string) => void
   isOpen: boolean
   onClose: () => void
-  
 }
 
-const StudentSidebar: React.FC<StudentSidebarProps> = ({ activeSection, onSectionChange, isOpen, onClose }) => {
-  const { logout } = useAuth()
+const StudentSidebar: React.FC<StudentSidebarProps> = ({ isOpen, onClose }) => {
+  const { logout } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
 
   const menuItems = [
-    { id: "dashboard", label: "Dashboard", icon: Home },
-    { id: "join-poll", label: "Join Poll", icon: Link }, // Changed icon to Link
+    { id: "", label: "Dashboard", icon: Home },
+    { id: "join-poll", label: "Join Poll", icon: Link },
     { id: "leaderboard", label: "Leaderboard", icon: Trophy },
     { id: "history", label: "Poll History", icon: History },
     { id: "profile", label: "Profile", icon: User },
     { id: "achievements", label: "Achievements", icon: Award },
     { id: "notifications", label: "Notifications", icon: Bell },
     { id: "settings", label: "Settings", icon: Settings },
-  ]
+  ];
 
-  const handleItemClick = (itemId: string) => {
-    onSectionChange(itemId)
-    if (window.innerWidth < 768) {
-      onClose()
-    }
+ const handleItemClick = (itemId: string) => {
+  navigate(itemId ? `/student/${itemId}` : "/student");
+  if (window.innerWidth < 768) {
+    onClose();
   }
+};
+
+  // Highlight active menu item based on current URL
+  const isActive = (itemId: string) => {
+    if (itemId === "") return location.pathname === "/student" || location.pathname === "/student/";
+    return location.pathname === `/student/${itemId}`;
+  };
+
+  const handleLogout = () => {
+    logout();
+    navigate("/");
+  };
 
   return (
     <>
@@ -64,9 +75,7 @@ const StudentSidebar: React.FC<StudentSidebarProps> = ({ activeSection, onSectio
           {/* Navigation */}
           <nav className="flex-1 p-4 space-y-2">
             {menuItems.map((item) => {
-              const Icon = item.icon
-              const isActive = activeSection === item.id
-
+              const Icon = item.icon;
               return (
                 <button
                   key={item.id}
@@ -75,28 +84,28 @@ const StudentSidebar: React.FC<StudentSidebarProps> = ({ activeSection, onSectio
                     w-full flex items-center space-x-3 px-4 py-3 rounded-xl
                     transition-all duration-200 group
                     ${
-                      isActive
+                      isActive(item.id)
                         ? "bg-gradient-to-r from-primary-500/20 to-secondary-500/20 text-primary-400 border border-primary-500/30"
                         : "text-gray-300 hover:bg-white/5 hover:text-white"
                     }
                   `}
                 >
                   <Icon
-                    className={`w-5 h-5 transition-transform group-hover:scale-110 ${isActive ? "animate-pulse" : ""}`}
+                    className={`w-5 h-5 transition-transform group-hover:scale-110 ${isActive(item.id) ? "animate-pulse" : ""}`}
                   />
                   <span className="font-medium">{item.label}</span>
                   {item.id === "notifications" && (
                     <div className="ml-auto w-2 h-2 bg-red-500 rounded-full animate-pulse" />
                   )}
                 </button>
-              )
+              );
             })}
           </nav>
 
           {/* Footer */}
           <div className="p-4 border-t border-white/10">
             <button
-              onClick={logout}
+              onClick={handleLogout}
               className="w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200 group text-red-400 hover:bg-red-500/10 hover:text-red-300"
             >
               <LogOut className="w-5 h-5 transition-transform group-hover:scale-110" />
@@ -106,7 +115,7 @@ const StudentSidebar: React.FC<StudentSidebarProps> = ({ activeSection, onSectio
         </div>
       </div>
     </>
-  )
-}
+  );
+};
 
-export default StudentSidebar
+export default StudentSidebar;
