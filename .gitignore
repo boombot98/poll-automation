@@ -100,3 +100,5 @@ services/pollgen-llm/pollgenenv/
 *.tmp
 *.temp
 *~
+apps/backend/transcriptions/
+services/whisper/transcriptions/
