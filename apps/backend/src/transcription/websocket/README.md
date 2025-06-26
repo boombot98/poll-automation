@@ -1,10 +1,10 @@
 # In-Memory Meeting Connections Store
 
-This document describes the in-memory meeting connections store implemented in `apps/backend/src/transcription/services` for the `poll-automation` monorepo. The store manages WebSocket connections for real-time audio transcription, tracking clients by `meetingId`, `speakerId`, and `role` (`host` or `participant`). It is part of the Node.js backend (`apps/backend`) and integrates with the Faster Whisper service (`services/whisper`) and AI module (`services/pollgen-llm`).
+This document describes the WebSocket connection management implemented in `apps/backend/src/transcription/websocket` for the `poll-automation` monorepo. The module manages WebSocket connections for real-time audio transcription, tracking clients by `meetingId`, `speakerId`, and session metadata. It is part of the Node.js backend (`apps/backend`) and integrates with the modular Whisper service (`services/whisper`) and AI module (`services/pollgen-llm`).
 
 ## Overview
 
-The in-memory connections store (`src/transcription/services/connections.ts`) is a lightweight solution for Phase 1, designed to:
+The WebSocket connection management (`src/transcription/websocket/connection.ts`) is a lightweight solution for Phase 1, designed to:
 - Track active WebSocket clients in meetings.
 - Support host/participant categorization for transcription routing.
 - Enable broadcasting of transcription results to meeting participants.
@@ -17,19 +17,20 @@ The store uses a `Map` structure and is planned to be replaced with MongoDB or R
 ```
 apps/backend/
 ├── src/
-│   ├── transcription/
-│   │   ├── services/
-│   │   │   ├── connections.ts    # In-memory meeting connections store
-│   │   │   └── whisperWebSocket.ts # WebSocket client for Faster Whisper
-│   │   ├── routes/
-│   │   └── ws/
-│   ├── websocket/
-│   │   ├── connection.ts         # WebSocket server initialization
-│   │   └── handlers.ts           # WebSocket message handling
-│   ├── web/
+│   ├── transcription/           # Transcription module (consolidated)
+│   │   ├── websocket/           # WebSocket connection and message handling
+│   │   │   ├── connection.ts    # WebSocket server setup and connection management
+│   │   │   ├── handlers.ts      # Message handlers for client and Whisper communication
+│   │   │   └── README.md        # This file
+│   │   ├── services/            # External service integrations
+│   │   │   └── whisper.ts       # Whisper service integration
+│   │   ├── routes/              # Express routes for transcription
+│   │   │   └── index.ts         # Transcription API routes
+│   │   └── index.ts             # Module exports
+│   ├── web/                     # Web app module
 │   ├── __tests__/
 │   └── index.ts
-├── README.md                     # Backend README (references this file)
+├── README.md
 └── package.json
 ```
 
@@ -129,12 +130,12 @@ export interface TranscriptionMessage {
 
 ## Integration
 
-- **WebSocket Server (`src/websocket/connection.ts`)**:
-  Initializes the WebSocket server and handles `ConnectionMessage` to add clients to the store. Cleans up connections on `close` or `error` events.
-- **Message Handlers (`src/websocket/handlers.ts`)**:
-  Processes `AudioChunkMessage` and uses `broadcastToMeeting` to send transcriptions.
-- **Faster Whisper Service (`services/whisper`)**:
-  Receives audio chunks via WebSocket and returns transcriptions, which are broadcast to meeting clients.
+- **WebSocket Server (`src/transcription/websocket/connection.ts`)**:
+  Initializes the WebSocket server and handles connection management. Cleans up connections on `close` or `error` events.
+- **Message Handlers (`src/transcription/websocket/handlers.ts`)**:
+  Processes audio chunks and text messages, forwards to Whisper service, and relays transcription results.
+- **Modular Whisper Service (`services/whisper`)**:
+  Receives audio chunks via WebSocket and returns transcriptions using a modular architecture with separate modules for configuration, audio processing, transcription, and WebSocket handling.
 - **AI Module (`services/pollgen-llm`)**:
   Planned for Phase 3 to receive transcription streams for live poll generation, using `meetingId` and `role` for context.
 
@@ -154,7 +155,7 @@ Tests cover:
 ## Collaboration Guidelines
 
 To avoid conflicts with the web app team in `apps/backend`:
-- **Modular Code**: Keep transcription-related code in `src/transcription` and `src/websocket`, separate from `src/web`.
+- **Modular Code**: Keep transcription-related code in `src/transcription` (including WebSocket functionality), separate from `src/web`.
 - **Dependencies**: Propose new dependencies (e.g., `ws`) via team channels or GitHub issues.
 - **PR Reviews**: Include both transcription and web app teams in PRs affecting `src/index.ts`, `package.json`, or `shared/types`.
 - **Types**: Update `shared/types` collaboratively to ensure compatibility.
