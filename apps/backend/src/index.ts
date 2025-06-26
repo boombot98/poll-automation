@@ -5,6 +5,7 @@ import settingsRouter from "./web/routes/settings";
 import dotenv from 'dotenv';
 import cors from 'cors'; 
 import saveQuestionsRouter from "./web/routes/save_questions";
+import transcriptsRouter from './web/routes/transcripts';
 
 dotenv.config();
 
@@ -14,6 +15,7 @@ const server = http.createServer(app);
 app.use(cors()); 
 app.use(express.json());
 app.use("/settings", settingsRouter);
+app.use("/api",transcriptsRouter);
 app.use("/questions", saveQuestionsRouter);
 app.get('/', (_req, res) => {
   res.send('PollGen Backend is running.');
