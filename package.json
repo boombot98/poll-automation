@@ -1,4 +1,10 @@
 {
+   "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@shared/types": ["shared/types/src"]
+    }
+  },
   "name": "poll-automation",
   "version": "1.0.0",
   "description": "",

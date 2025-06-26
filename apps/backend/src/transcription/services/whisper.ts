@@ -1,77 +1,56 @@
-// apps/backend/src/transcription/services/whisper.ts
 import WebSocket from 'ws';
-import dotenv from 'dotenv'; // Import dotenv
-
-dotenv.config(); // Load .env file
-
-export interface SessionMeta {
-  meetingId: string;
-  speaker: string;
-}
-
-// Read Whisper service URL from environment variable
-const WHISPER_SERVICE_URL = process.env.WHISPER_SERVICE_URL || 'ws://127.0.0.1:8000/';
-
-export const forwardToWhisper = (clientWs: WebSocket, meta: SessionMeta): Promise<WebSocket> => {
-    return new Promise((resolve, reject) => {
-        try {
-            console.log(`[Backend→Whisper] Establishing persistent connection to Python Whisper service at ${WHISPER_SERVICE_URL}...`);
-            const whisperWS = new WebSocket(WHISPER_SERVICE_URL);
-
-            const connectionTimeout = setTimeout(() => {
-                console.error("[Backend→Whisper] Connection timeout establishing persistent Whisper WS.");
-                whisperWS.close();
-                reject(new Error("Whisper service connection timeout"));
-            }, 10000);
-
-            whisperWS.on('open', () => {
-                clearTimeout(connectionTimeout);
-                console.log("[Backend→Whisper] Persistent Whisper WS connected. Sending 'start' signal to Whisper.");
-                whisperWS.send(JSON.stringify({ type: 'start', meetingId: meta.meetingId, speaker: meta.speaker }));
-                resolve(whisperWS);
-            });
-
-            // ... (rest of the whisperWS.on('message'), 'error', 'close' handlers remain the same)
-             whisperWS.on('message', (data) => {
-                try {
-                    const response = JSON.parse(data.toString());
-
-                    if (response.type === "status") {
-                        console.log(`[Backend→Whisper] Status: ${response.message}`);
-                        return;
-                    }
-
-                    if (clientWs.readyState === WebSocket.OPEN) {
-                        clientWs.send(JSON.stringify(response));
-                    } else {
-                        console.warn("[Backend→Whisper] Client WebSocket closed, could not forward transcription.");
-                    }
-                } catch (err) {
-                    console.error("[Backend→Whisper] Failed to parse response from Whisper or forward:", err);
-                }
-            });
-
-            whisperWS.on('error', (err) => {
-                clearTimeout(connectionTimeout);
-                console.error("[Backend→Whisper] Persistent WebSocket error:", err.message);
-                reject(err);
-            });
-
-            whisperWS.on('close', (code, reason) => {
-                console.log(`[Backend→Whisper] Persistent Whisper WS closed. Code: ${code}, Reason: ${reason.toString()}`);
-            });
+import { connectionStore } from '../../websocket/connection';
+import { handleWhisperMessage, handleWhisperClose, handleWhisperError } from '../../websocket/handlers';
+const WHISPER_SERVICE_URL = 'ws://localhost:8000';
 
 
-        } catch (err) {
-            console.error("[Backend→Whisper] Error initiating persistent WebSocket connection:", err);
-            reject(err);
-        }
-    });
+export const forwardToWhisper = (clientWs: WebSocket, meetingId: string, speaker: string): Promise<void> => {
+  return new Promise((resolve, reject) => {
+    const whisperWs = new WebSocket(WHISPER_SERVICE_URL);
+
+    whisperWs.onopen = () => {
+      console.log(`[WhisperService] Connected to Whisper service for ${speaker}.`);
+      connectionStore.updateSessionWhisperWs(clientWs, whisperWs);
+
+      const sessionMeta = connectionStore.getSessionMeta(clientWs);
+
+      if (sessionMeta?.audioBuffer?.length) {
+        sessionMeta.audioBuffer.forEach((chunk: Buffer) => {
+          whisperWs.send(chunk);
+        });
+
+        console.log(`[WhisperService] Flushed ${sessionMeta.audioBuffer.length} buffered audio chunks.`);
+        sessionMeta.audioBuffer = [];
+      }
+
+      const startMessage = JSON.stringify({
+        type: 'start',
+        meetingId,
+        speaker
+      });
+      whisperWs.send(startMessage);
+      resolve();
+    };
+
+    whisperWs.onmessage = (event) => {
+      handleWhisperMessage(clientWs, event.data.toString());
+    };
+
+    whisperWs.onclose = (event) => {
+      console.log(`[WhisperService] Whisper WebSocket closed for ${speaker}: ${event.code} - ${event.reason}`);
+      handleWhisperClose(clientWs, whisperWs);
+      reject(new Error(`Whisper WebSocket closed: ${event.reason}`));
+    };
+
+    whisperWs.onerror = (event: any) => {
+      console.error(`[WhisperService] Whisper WebSocket error for ${speaker}:`, event);
+      handleWhisperError(clientWs, event?.error || new Error('Unknown Whisper WebSocket error'));
+      reject(event?.error || new Error('Whisper WebSocket connection error'));
+    };
+  });
 };
 
-export const closeWhisperConnection = (whisperWs: WebSocket) => {
-    if (whisperWs && whisperWs.readyState === WebSocket.OPEN) {
-        whisperWs.send(JSON.stringify({ type: 'end' }));
-        whisperWs.close();
-    }
+export const transcribeAudioChunk = async (audioChunk: Buffer): Promise<any> => {
+  console.warn("transcribeAudioChunk is deprecated for real-time streaming. Use WebSocket instead.");
+  return Promise.resolve({ transcript: "Deprecated", confidence: 0 });
 };

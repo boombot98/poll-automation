@@ -1,25 +1,16 @@
-from qdrant_client import QdrantClient
-from qdrant_client.models import Distance, VectorParams, PointStruct
-from sentence_transformers import SentenceTransformer
+import chromadb
+from chromadb.utils import embedding_functions
 
-model = SentenceTransformer("all-MiniLM-L6-v2")
-qdrant = QdrantClient(host="localhost", port=6333)
+client = chromadb.Client()
+COLLECTION_NAME = "transcript_chunks"
 
-COLLECTION_NAME = "lecture_chunks"
-
-def setup_collection():
-    if COLLECTION_NAME not in qdrant.get_collections().collections:
-        qdrant.recreate_collection(
-            collection_name=COLLECTION_NAME,
-            vectors_config=VectorParams(size=384, distance=Distance.COSINE)
-        )
+embedding_func = embedding_functions.SentenceTransformerEmbeddingFunction(model_name="all-MiniLM-L6-v2")
+collection = client.get_or_create_collection(name=COLLECTION_NAME, embedding_function=embedding_func)
 
 def insert_chunks(chunks):
-    vectors = model.encode(chunks).tolist()
-    points = [PointStruct(id=i, vector=vectors[i], payload={"text": chunks[i]}) for i in range(len(chunks))]
-    qdrant.upload_points(collection_name=COLLECTION_NAME, points=points)
+    ids = [str(i) for i in range(len(chunks))]
+    collection.add(documents=chunks, ids=ids)
 
-def search(query, top_k=1):
-    vector = model.encode(query).tolist()
-    hits = qdrant.search(collection_name=COLLECTION_NAME, query_vector=vector, limit=top_k)
-    return [hit.payload["text"] for hit in hits]
+def search(query, n_results=3):
+    result = collection.query(query_texts=[query], n_results=n_results)
+    return result["documents"]

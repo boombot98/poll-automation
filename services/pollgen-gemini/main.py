@@ -1,26 +1,14 @@
 from chunker import chunk_text
-from vector import setup_collection, insert_chunks, search
-from gemini import generate_question_from_context
+from vector import insert_chunks, search
+from gemini import generate_poll
 
-
-# 1. Load and chunk transcript
-with open("sample_transcript.txt", "r") as f:
+with open("sample_transcript.txt", "r", encoding="utf-8") as f:
     transcript = f.read()
 
 chunks = chunk_text(transcript)
-
-# 2. Store in Qdrant
-setup_collection()
 insert_chunks(chunks)
 
-# 3. Simulate a query (e.g., "What is photosynthesis?")
-query = "Explain how plants make energy from sunlight."
-relevant_context = search(query)[0]
-
-# 4. Get question from Gemini
-
-mcq = generate_question_from_context(relevant_context)
-print("\n✅ Generated MCQ:\n")
-print(mcq)
-
-
+context = " ".join(search("contextual question")[0])
+questions = generate_poll(context, "MCQ", "medium", 3)
+for i, q in enumerate(questions, 1):
+    print(f"Q{i}: {q}")

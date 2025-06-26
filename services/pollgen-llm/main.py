@@ -1,10 +1,10 @@
 from langchain_ollama.llms import OllamaLLM
 from langchain_core.prompts import ChatPromptTemplate
-from vector import get_retriever
+from vector import get_retriever, generate_hypothetical_answer
 
 model = OllamaLLM(model="llama3.2")
 
-template = """
+question_prompt_template = """
 Based STRICTLY on the following educational content spoken by the instructor, generate {num_questions} high-quality, thought-provoking {question_type} questions.
 
 CONTEXT (Instructor's content):
@@ -41,12 +41,17 @@ Important: Your output MUST include all of the following fields for every questi
 - "difficulty"
 - "concept"
 """
-prompt = ChatPromptTemplate.from_template(template)
+
+prompt = ChatPromptTemplate.from_template(question_prompt_template)
 chain = prompt | model
+
 def generate_questions_llama_chain(settings: dict):
-    retriever = get_retriever()
-    docs = retriever.invoke("generate good questions")
+    query = "generate good questions"
+    hypothetical_answer = generate_hypothetical_answer(query)  # HyDE step
+    retriever = get_retriever(hypothetical_answer)
+    docs = retriever.invoke(hypothetical_answer)
     combined_context = docs[0].page_content
+
     return chain.invoke({
         "combined_context": combined_context,
         "num_questions": settings["numQuestions"],

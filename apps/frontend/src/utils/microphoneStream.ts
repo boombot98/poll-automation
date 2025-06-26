@@ -1,274 +1,221 @@
 // apps/frontend/src/utils/microphoneStream.ts
-// Use the shared TranscriptionResult type for consistency
-import type { TranscriptionResult, StartMessage, EndMessage } from '../../../../shared/types/src/websocket.js'; // Ensure StartMessage and EndMessage are imported
+import type {
+  StartMessage,
+   EndMessage,
+  TranscriptionResult,
+  StartConfirmationMessage,
+  ServerToFrontendMessage
+} from '@shared/types';
 
-const WS_URL = import.meta.env.VITE_BACKEND_WS_URL || "ws://localhost:3000";
-const TARGET_SAMPLE_RATE = 16000; // Target sample rate for Whisper model
-const SCRIPT_PROCESSOR_BUFFER_SIZE = 4096; // Buffer size in SAMPLES for ScriptProcessorNode (2^n, e.g., 2048, 4096, 8192, 16384)
+interface MicrophoneStreamerOptions {
+    websocketUrl: string;
+    meetingId: string;
+    proposedSpeakerName: string;
+    onTranscription: (result: TranscriptionResult) => void;
+    onStatus: (message: string) => void;
+    onError: (error: string) => void;
+    onStreamEnd: () => void;
+}
 
 export class MicrophoneStreamer {
-    private socket: WebSocket | null = null;
+    private ws: WebSocket | null = null;
+    private mediaStream: MediaStream | null = null;
     private audioContext: AudioContext | null = null;
-    private mediaStreamSource: MediaStreamAudioSourceNode | null = null;
-    private scriptProcessor: ScriptProcessorNode | null = null; // Deprecated but widely supported
-    private stream: MediaStream | null = null;
+    private audioProcessor: ScriptProcessorNode | null = null; // Deprecated but widely supported, AudioWorklet for modern apps
+    private isStreaming: boolean = false;
+    private assignedSpeakerId: string | null = null; // Store the ID assigned by the backend
+    private audioQueue: Int16Array[] = []; // Queue audio until speakerId is assigned
+    private processingInterval: any; // Interval for sending queued audio
 
-    private reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
-    private pingInterval: ReturnType<typeof setInterval> | null = null; // For frontend pings
-    private stoppingManually: boolean = false; // Flag to differentiate between intentional and unintentional closes
+    private readonly websocketUrl: string;
+    private readonly meetingId: string;
+    private readonly proposedSpeakerName: string;
+    private readonly onTranscription: (result: TranscriptionResult) => void;
+    private readonly onStatus: (message: string) => void;
+    private readonly onError: (error: string) => void;
+    private readonly onStreamEnd: () => void;
 
-    private meetingId: string;
-    private speaker: string;
-    private onTranscription: (data: TranscriptionResult) => void;
-    private onStreamEnd: () => void;
-    private onError: (error: Error | Event | unknown) => void;
+    // Audio constants
+    private readonly SAMPLE_RATE = 16000; // Expected by Whisper
+    private readonly BUFFER_SIZE = 4096; // ScriptProcessorNode buffer size
 
-    private recording: boolean = false;
-
-    constructor(
-        meetingId: string,
-        speaker: string,
-        onTranscription: (data: TranscriptionResult) => void,
-        onStreamEnd: () => void,
-        onError: (error: Error | Event | unknown) => void
-    ) {
-        this.meetingId = meetingId;
-        this.speaker = speaker;
-        this.onTranscription = onTranscription;
-        this.onStreamEnd = onStreamEnd;
-        this.onError = onError;
+    constructor(options: MicrophoneStreamerOptions) {
+        this.websocketUrl = options.websocketUrl;
+        this.meetingId = options.meetingId;
+        this.proposedSpeakerName = options.proposedSpeakerName;
+        this.onTranscription = options.onTranscription;
+        this.onStatus = options.onStatus;
+        this.onError = options.onError;
+        this.onStreamEnd = options.onStreamEnd;
     }
 
-    public async startStreaming(): Promise<void> {
-        if (this.recording) {
-            console.warn("[Frontend] Already recording.");
+    private log(level: 'info' | 'warn' | 'error' | 'debug', message: string, ...args: any[]) {
+        const prefix = `[MicStreamer-${this.meetingId}-${this.proposedSpeakerName}]`;
+        if (level === 'error') console.error(prefix, message, ...args);
+        else if (level === 'warn') console.warn(prefix, message, ...args);
+        else if (level === 'debug') console.debug(prefix, message, ...args);
+        else console.log(prefix, message, ...args);
+    }
+
+    async start(): Promise<void> {
+        if (this.isStreaming) {
+            this.log('warn', 'Already streaming.');
             return;
         }
 
-        console.log("[Frontend] Initiating microphone streaming connection...");
-        // Start the WebSocket connection attempt. Audio will start on WS open.
-        this.attemptConnectWebSocket();
-    }
+        this.onStatus('Requesting microphone access...');
+        this.log('info', 'Starting microphone stream...');
 
-    // New method to handle WebSocket connection and reconnection logic
-    private attemptConnectWebSocket = (): void => {
-        // Clear any pending reconnection timeout to avoid multiple attempts
-        if (this.reconnectTimeout) {
-            clearTimeout(this.reconnectTimeout);
-            this.reconnectTimeout = null;
-        }
+        try {
+            // 1. Get Microphone Access
+            this.mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            this.onStatus('Microphone access granted. Connecting to server...');
 
-        // Clean up existing socket if it's not truly closed before attempting a new one
-        if (this.socket && (this.socket.readyState === WebSocket.OPEN || this.socket.readyState === WebSocket.CONNECTING)) {
-            // Close existing gracefully, using 1000 for normal closure to not trigger auto-reconnect
-            this.socket.close(1000, 'Attempting reconnection');
-        }
+            // 2. Initialize AudioContext and ScriptProcessorNode
+            this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)({
+                sampleRate: this.SAMPLE_RATE,
+            });
+            const source = this.audioContext.createMediaStreamSource(this.mediaStream);
 
-        this.socket = new WebSocket(WS_URL);
-        this.socket.binaryType = "arraybuffer";
+            // Using ScriptProcessorNode (deprecated, but widely compatible for quick setup)
+            // For production, consider AudioWorklet for better performance and modern API.
+            this.audioProcessor = this.audioContext.createScriptProcessor(this.BUFFER_SIZE, 1, 1);
+            this.audioProcessor.onaudioprocess = this.handleAudioProcess;
+            source.connect(this.audioProcessor);
+            this.audioProcessor.connect(this.audioContext.destination);
 
-        this.socket.onopen = async () => {
-            console.log("[Frontend WS] Connected to backend.");
-            // Send initial metadata as a StartMessage
-            const startMessage: StartMessage = { type: "start", meetingId: this.meetingId, speaker: this.speaker };
-            this.socket?.send(JSON.stringify(startMessage));
-            this.recording = true; // Mark as recording once WS is open
+            // 3. Initialize WebSocket
+            this.ws = new WebSocket(this.websocketUrl);
 
-            // --- START Frontend Ping (Heartbeat) ---
-            if (this.pingInterval) clearInterval(this.pingInterval); // Clear any old interval
-            this.pingInterval = setInterval(() => {
-                if (this.socket?.readyState === WebSocket.OPEN) {
-                    // Send an application-level ping message
-                    this.socket.send(JSON.stringify({ type: "ping" }));
-                }
-            }, 25000); // Send ping every 25 seconds (should be less than server's timeout)
-            // --- END Frontend Ping ---
+            this.ws.onopen = () => {
+                this.log('info', 'WebSocket connected. Sending start message...');
+                this.onStatus('Connected. Starting session...');
+                this.isStreaming = true;
 
-            // Initialize and connect audio stream ONLY after WebSocket is open
-            try {
-                await this.initAudioStream();
-                this.mediaStreamSource?.connect(this.scriptProcessor!);
-                this.scriptProcessor?.connect(this.audioContext!.destination);
-                console.log("[Frontend] Microphone audio processing started.");
-            } catch (err) {
-                console.error("[Frontend] Error initializing audio stream after WS open:", err);
-                this.onError(err);
-                this.stopStreaming(false); // Stop if audio stream fails
-            }
-        };
+                // Send initial start message with proposedSpeakerName
+                const startMessage: StartMessage = {
+                    type: 'start',
+                    meetingId: this.meetingId,
+                    proposedSpeakerName: this.proposedSpeakerName,
+                };
+                this.ws?.send(JSON.stringify(startMessage));
 
-        this.socket.onmessage = (event) => {
-            try {
-                const data = JSON.parse(event.data as string);
-                if (data.type === "transcription") {
-                    this.onTranscription(data as TranscriptionResult); // Pass transcription to callback
-                    if (data.is_final) {
-                        console.log("[Frontend WS] Received final transcription. Signalling stream end.");
-                        // Important: Close socket with code 1000 (Normal Closure)
-                        // This prevents the onclose handler from triggering auto-reconnect for this intentional stop.
-                        if (this.socket?.readyState === WebSocket.OPEN) {
-                            this.socket.close(1000, "Received final transcription");
+                // Start sending queued audio only after speakerId is assigned
+                this.processingInterval = setInterval(() => {
+                    if (this.assignedSpeakerId && this.audioQueue.length > 0) {
+                        const buffer = this.audioQueue.shift(); // Get oldest chunk
+                        if (buffer) {
+                            this.ws?.send(buffer.buffer); // Send Int16Array's ArrayBuffer
+                            this.log('debug', `Sent ${buffer.byteLength} bytes from queue.`);
                         }
-                        this.stopStreaming(false); // Clean up audio stream, but don't send 'end' signal again
                     }
-                } else if (data.type === "pong") {
-                    // console.log("[Frontend WS] Received pong from backend."); // Optional: log backend pong
+                }, 50); // Send every 50ms if data is available
+            };
+
+            this.ws.onmessage = (event) => {
+                const message: ServerToFrontendMessage = JSON.parse(event.data);
+                this.log('debug', 'Received message:', message);
+
+                if (message.type === 'status') {
+                    const statusMessage = message as StartConfirmationMessage;
+                    this.onStatus(statusMessage.message);
+                    if (statusMessage.speakerId) {
+                        this.assignedSpeakerId = statusMessage.speakerId;
+                        this.onStatus(`Session started as speaker: ${this.assignedSpeakerId}`);
+                        this.log('info', `Assigned speaker ID: ${this.assignedSpeakerId}`);
+                    }
+                } else if (message.type === 'transcription') {
+                    this.onTranscription(message as TranscriptionResult);
+                } else if (message.type === 'error') {
+                    this.onError(`Server error: ${message.message}`);
+                    this.log('error', 'Server error message:', message.message);
+                    this.stop(); // Stop streaming on server error
                 }
-                // Handle other message types like 'status', 'error' from backend here
-            } catch (err) {
-                console.error("[Frontend WS] Failed to parse message:", event.data, err);
-                this.onError(err);
-            }
-        };
+            };
 
-        this.socket.onclose = (event) => {
-            console.log(`[Frontend WS] Disconnected from backend. Code: ${event.code}, Reason: ${event.reason}`);
-            this.recording = false; // Stop internal recording flag
-            if (this.pingInterval) clearInterval(this.pingInterval); // Clear frontend ping interval
+            this.ws.onclose = (event) => {
+                this.log('info', `WebSocket closed: ${event.code} - ${event.reason}`);
+                this.onStatus('Connection closed.');
+                this.cleanup();
+            };
 
-            // Always disconnect audio stream on WS close
-            this.disconnectAudioStream();
+            this.ws.onerror = (error) => {
+                this.log('error', 'WebSocket error:', error);
+                this.onError('WebSocket connection error.');
+                this.cleanup();
+            };
 
-            // Attempt to reconnect only if it's not a normal, intentional closure (code 1000)
-            // or if it wasn't triggered by stopStreaming (which sets stoppingManually)
-            if (event.code !== 1000 && !this.stoppingManually) {
-                console.log("[Frontend WS] Auto-reconnecting in 3 seconds...");
-                // Set a timeout to attempt reconnection
-                this.reconnectTimeout = setTimeout(this.attemptConnectWebSocket, 3000);
-            } else {
-                // If it was a normal closure or manual stop, signal end of stream
-                this.onStreamEnd();
-            }
-        };
-
-        this.socket.onerror = (err) => {
-            console.error("[Frontend WS] WebSocket error:", err);
-            this.onError(err);
-            // WebSocket errors typically lead to 'onclose', which will then handle reconnection
-            if (this.socket && this.socket.readyState !== WebSocket.CLOSED) {
-                this.socket.close(); // Force close to ensure onclose is triggered
-            }
-        };
+        } catch (error) {
+            this.log('error', 'Error starting microphone stream:', error);
+            this.onError(`Could not start microphone: ${error instanceof Error ? error.message : String(error)}`);
+            this.cleanup();
+        }
     }
 
-    // New helper method to initialize audio stream components
-    private async initAudioStream(): Promise<void> {
-        // Only get media stream once unless explicitly reset
-        if (!this.stream || !this.stream.active) {
-            this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        }
-        if (!this.audioContext || this.audioContext.state === 'closed') {
-            this.audioContext = new (window.AudioContext || (window as typeof window & { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
-        }
-        if (this.audioContext.state === 'suspended') {
-            await this.audioContext.resume();
+    private handleAudioProcess = (event: AudioProcessingEvent) => {
+        if (!this.isStreaming || !this.ws || this.ws.readyState !== WebSocket.OPEN) {
+            return;
         }
 
-        this.mediaStreamSource = this.audioContext.createMediaStreamSource(this.stream);
-        // ScriptProcessorNode should use AudioContext's sampleRate.
-        this.scriptProcessor = this.audioContext.createScriptProcessor(SCRIPT_PROCESSOR_BUFFER_SIZE, 1, 1);
-        this.scriptProcessor.onaudioprocess = this.handleAudioProcess;
+        const inputBuffer = event.inputBuffer.getChannelData(0);
+        // Convert Float32Array to Int16Array (16-bit PCM) for the Python backend
+        const int16Buffer = new Int16Array(inputBuffer.length);
+        for (let i = 0; i < inputBuffer.length; i++) {
+            int16Buffer[i] = Math.max(-1, Math.min(1, inputBuffer[i])) * 0x7FFF; // Scale to 16-bit and clamp
+        }
+
+        // Queue audio if speakerId not yet assigned, otherwise send directly
+        if (this.assignedSpeakerId) {
+            this.ws.send(int16Buffer.buffer);
+            this.log('debug', `Sent ${int16Buffer.byteLength} bytes audio.`);
+        } else {
+            this.audioQueue.push(int16Buffer);
+            this.log('debug', `Queued ${int16Buffer.byteLength} bytes. Queue size: ${this.audioQueue.length}`);
+        }
+    };
+
+    stop(): void {
+        this.log('info', 'Stopping microphone stream...');
+        if (!this.isStreaming) {
+            this.log('warn', 'Not currently streaming.');
+            return;
+        }
+
+        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+            const endMessage:  EndMessage = { // Re-using StartMessage interface for simplicity for "end"
+                type: 'end',
+                meetingId: this.meetingId,
+            };
+            this.ws.send(JSON.stringify(endMessage));
+            this.ws.close();
+        }
+        this.cleanup();
+        this.onStatus('Recording stopped.');
+        this.onStreamEnd();
     }
 
-    // New helper method to disconnect and clean up audio stream resources
-    private disconnectAudioStream(): void {
-        if (this.scriptProcessor) {
-            this.scriptProcessor.disconnect();
-            this.scriptProcessor.onaudioprocess = null; // Remove event listener
-            this.scriptProcessor = null;
+    private cleanup(): void {
+        this.isStreaming = false;
+        this.assignedSpeakerId = null;
+        this.audioQueue = []; // Clear any queued audio
+        if (this.processingInterval) {
+            clearInterval(this.processingInterval);
+            this.processingInterval = null;
         }
-        if (this.mediaStreamSource) {
-            this.mediaStreamSource.disconnect();
-            this.mediaStreamSource = null;
+        if (this.audioProcessor) {
+            this.audioProcessor.disconnect();
+            this.audioProcessor.onaudioprocess = null;
+            this.audioProcessor = null;
         }
-        if (this.stream) {
-            this.stream.getTracks().forEach(track => track.stop()); // Stop microphone tracks
-            this.stream = null;
-        }
-        if (this.audioContext && this.audioContext.state !== 'closed') {
-            // It's generally better to close the AudioContext to release system resources fully
+        if (this.audioContext) {
             this.audioContext.close();
             this.audioContext = null;
         }
-        console.log("[Frontend] Audio stream disconnected and resources released.");
+        if (this.mediaStream) {
+            this.mediaStream.getTracks().forEach(track => track.stop());
+            this.mediaStream = null;
+        }
+        this.ws = null;
+        this.log('info', 'Microphone stream cleaned up.');
     }
-
-    public stopStreaming(sendEndSignal: boolean = true): void {
-        if (!this.recording && !this.socket) { // No active recording or socket to stop
-            console.warn("[Frontend] Streaming already stopped or not active.");
-            return;
-        }
-
-        this.stoppingManually = true; // Set flag to indicate intentional stop
-        this.recording = false;
-
-        console.log("[Frontend] Stopping microphone streaming.");
-
-        // Clean up audio stream resources immediately
-        this.disconnectAudioStream();
-
-        // Clear frontend ping interval if active
-        if (this.pingInterval) {
-            clearInterval(this.pingInterval);
-            this.pingInterval = null;
-        }
-
-        if (this.socket && this.socket.readyState === WebSocket.OPEN) {
-            if (sendEndSignal) {
-                console.log("[Frontend WS] Sending 'end' signal.");
-                const endMessage: EndMessage = { type: "end", meetingId: this.meetingId, speaker: this.speaker };
-                this.socket.send(JSON.stringify(endMessage));
-            }
-            // IMPORTANT: Close the socket with code 1000 (Normal Closure).
-            // This prevents the `onclose` handler from triggering the auto-reconnect logic.
-            this.socket.close(1000, 'Manual stop by user');
-        } else {
-            console.log("[Frontend] Socket not open or already closed. Signalling stream end.");
-            this.onStreamEnd(); // Socket already closed or not open, just resolve
-        }
-
-        // Reset flag after potential close, allowing future auto-reconnects
-        this.stoppingManually = false;
-        this.socket = null; // Clear socket reference
-    }
-
-    private handleAudioProcess = async (event: AudioProcessingEvent) => {
-        if (!this.recording || !this.socket || this.socket.readyState !== WebSocket.OPEN) {
-            return;
-        }
-
-        let inputBuffer = event.inputBuffer.getChannelData(0);
-
-        // Resample if needed
-        if (this.audioContext && this.audioContext.sampleRate !== TARGET_SAMPLE_RATE) {
-            inputBuffer = await resampleBuffer(inputBuffer, this.audioContext.sampleRate, TARGET_SAMPLE_RATE);
-        }
-
-        // Convert float32 audio to 16-bit PCM (signed 16-bit integers)
-        const output = new Int16Array(inputBuffer.length);
-        for (let i = 0; i < inputBuffer.length; i++) {
-            const s = Math.max(-1, Math.min(1, inputBuffer[i]));
-            output[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
-        }
-
-        // Skip silent buffers
-        const avg = inputBuffer.reduce((sum, v) => sum + Math.abs(v), 0) / inputBuffer.length;
-        if (avg < 0.01) return; // Skip silent buffers
-
-        this.socket.send(output.buffer);
-    };
-}
-
-// Add this helper function in your file (outside the class)
-async function resampleBuffer(buffer: Float32Array, inputSampleRate: number, targetSampleRate: number): Promise<Float32Array> {
-    if (inputSampleRate === targetSampleRate) return buffer;
-    const offlineCtx = new OfflineAudioContext(1, buffer.length * targetSampleRate / inputSampleRate, targetSampleRate);
-    const audioBuffer = offlineCtx.createBuffer(1, buffer.length, inputSampleRate);
-    audioBuffer.copyToChannel(buffer, 0);
-    const source = offlineCtx.createBufferSource();
-    source.buffer = audioBuffer;
-    source.connect(offlineCtx.destination);
-    source.start();
-    const rendered = await offlineCtx.startRendering();
-    return rendered.getChannelData(0);
 }
