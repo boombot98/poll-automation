@@ -1,8 +1,8 @@
 // Example React Component
 import React, { useState, useRef } from "react";
-import { MicrophoneStreamer } from "../utils/microphoneStream"; // Adjust path as needed
+import { MicrophoneStreamer } from "../utils/microphoneStream";
 // Correct import for TranscriptionResult from the shared types
-import type { TranscriptionResult } from "../../../../shared/types/src/websocket"; // Adjust path based on monorepo
+import type { TranscriptionResult } from "@shared/types";
 
 const LiveTranscriptionComponent: React.FC = () => {
   const [transcriptions, setTranscriptions] = useState<string[]>([]);

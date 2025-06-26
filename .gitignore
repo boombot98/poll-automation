@@ -102,3 +102,5 @@ services/pollgen-llm/chroma_langchain_db
 *.tmp
 *.temp
 *~
+apps/backend/transcriptions/
+services/whisper/transcriptions/

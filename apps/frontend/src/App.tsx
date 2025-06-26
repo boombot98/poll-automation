@@ -1,6 +1,5 @@
-import UploadWAV from "./components/UploadWAV";
+import { UploadWAV, TranscriptListener } from "./transcription";
 import { HostSettings } from "./components/HostSettings";
-import TranscriptListener from "./components/TranscriptListener";
 function App() {
   return (
     <div className="p-4 space-y-8">

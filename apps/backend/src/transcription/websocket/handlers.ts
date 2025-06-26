@@ -1,6 +1,6 @@
 import WebSocket from 'ws';
 import { v4 as uuidv4 } from 'uuid';
-import { forwardToWhisper } from '../transcription/services/whisper';
+import { forwardToWhisper } from '../services/whisper';
 import { connectionStore } from './connection';
 import {
   FrontendToServerMessage,

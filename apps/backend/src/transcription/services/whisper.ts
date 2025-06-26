@@ -1,6 +1,6 @@
 import WebSocket from 'ws';
-import { connectionStore } from '../../websocket/connection';
-import { handleWhisperMessage, handleWhisperClose, handleWhisperError } from '../../websocket/handlers';
+import { connectionStore } from '../websocket/connection';
+import { handleWhisperMessage, handleWhisperClose, handleWhisperError } from '../websocket/handlers';
 const WHISPER_SERVICE_URL = 'ws://localhost:8000';
 
 
