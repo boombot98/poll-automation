@@ -11,7 +11,7 @@ import io
 import uuid
 from src.transcription.engine import TranscriptionEngine
 from src.audio.processor import AudioProcessor
-from src.config.settings import get_logger
+from src.config.settings import get_logger, SERVER_HOST, SERVER_PORT, DEBUG_MODE
 
 # Initialize logger and transcription engine
 logger = get_logger(__name__)
@@ -151,9 +151,10 @@ async def websocket_endpoint(websocket: WebSocket):
 if __name__ == "__main__":
     import uvicorn
     print("Starting Whisper Transcription Service...")
+    log_level = "debug" if DEBUG_MODE else "info"
     uvicorn.run(
         app,
-        host="127.0.0.1",
-        port=8000,
-        log_level="debug"
+        host=SERVER_HOST,
+        port=SERVER_PORT,
+        log_level=log_level
     )
