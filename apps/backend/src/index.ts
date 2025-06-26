@@ -1,6 +1,6 @@
 import express from 'express';
 import http from 'http';
-import { setupWebSocketServer } from './websocket/connection';
+import { setupWebSocketServer } from './transcription/websocket/connection';
 import settingsRouter from "./web/routes/settings";
 import dotenv from 'dotenv';
 import cors from 'cors'; 
