@@ -71,7 +71,7 @@ export class MicrophoneStreamer {
             this.mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
             this.onStatus('Microphone access granted. Connecting to server...');
 
-            // 2. Initialize AudioContext and ScriptProcessorNode
+            // 2. Initialize AudioContext and ScriptProcessorNode (but don't start processing yet)
             this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)({
                 sampleRate: this.SAMPLE_RATE,
             });
@@ -80,25 +80,48 @@ export class MicrophoneStreamer {
             // Using ScriptProcessorNode (deprecated, but widely compatible for quick setup)
             // For production, consider AudioWorklet for better performance and modern API.
             this.audioProcessor = this.audioContext.createScriptProcessor(this.BUFFER_SIZE, 1, 1);
-            this.audioProcessor.onaudioprocess = this.handleAudioProcess;
+            // Don't set onaudioprocess yet - wait for WebSocket connection
             source.connect(this.audioProcessor);
             this.audioProcessor.connect(this.audioContext.destination);
 
-            // 3. Initialize WebSocket
+            // 3. Initialize WebSocket with proper configuration
             this.ws = new WebSocket(this.websocketUrl);
+            // Ensure binary data is handled as ArrayBuffer for audio chunks
+            this.ws.binaryType = 'arraybuffer';
 
             this.ws.onopen = () => {
                 this.log('info', 'WebSocket connected. Sending start message...');
+                this.log('info', `WebSocket readyState: ${this.ws?.readyState}`);
                 this.onStatus('Connected. Starting session...');
-                this.isStreaming = true;
 
-                // Send initial start message with proposedSpeakerName
-                const startMessage: StartMessage = {
-                    type: 'start',
-                    meetingId: this.meetingId,
-                    proposedSpeakerName: this.proposedSpeakerName,
-                };
-                this.ws?.send(JSON.stringify(startMessage));
+                // Send initial start message with proposedSpeakerName after a small delay
+                setTimeout(() => {
+                    const startMessage: StartMessage = {
+                        type: 'start',
+                        meetingId: this.meetingId,
+                        proposedSpeakerName: this.proposedSpeakerName,
+                    };
+                    const messageString = JSON.stringify(startMessage);
+                    this.log('info', 'Sending start message:', messageString);
+                    this.log('info', `WebSocket readyState before send: ${this.ws?.readyState}`);
+
+                    if (this.ws?.readyState === WebSocket.OPEN) {
+                        this.ws.send(messageString);
+                        this.log('info', 'Start message sent successfully');
+                        this.log('info', `Message sent as: ${typeof messageString}, content: ${messageString}`);
+                    } else {
+                        this.log('error', 'WebSocket not open when trying to send start message');
+                    }
+                }, 50); // Small delay to ensure connection is fully established
+
+                // Give the backend a moment to process the start message, then start audio processing
+                setTimeout(() => {
+                    if (this.audioProcessor && this.ws?.readyState === WebSocket.OPEN) {
+                        this.audioProcessor.onaudioprocess = this.handleAudioProcess;
+                        this.isStreaming = true;
+                        this.log('info', 'Audio processing started after WebSocket connection.');
+                    }
+                }, 200); // 200ms delay to ensure backend processes start message (increased from 100ms)
 
                 // Start sending queued audio only after speakerId is assigned
                 this.processingInterval = setInterval(() => {
