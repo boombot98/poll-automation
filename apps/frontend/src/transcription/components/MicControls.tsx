@@ -1,7 +1,7 @@
 // apps/frontend/src/components/MicControls.tsx
 import React, { useState, useEffect, useRef } from 'react';
 import { MicrophoneStreamer } from '../utils/microphoneStream';
-import { TranscriptionResult } from '@shared/types'; // Assuming this import path is correct
+import type { TranscriptionResult } from '@shared/types';
 
 // Assuming this component receives props like meetingId and speaker for the host
 interface MicControlsProps {

@@ -1,6 +1,6 @@
 // apps/frontend/src/utils/uploadAndStream.ts
 // Use the shared TranscriptionResult type for consistency
-import type { TranscriptionResult, StartMessage, EndMessage } from '../../../../shared/types/src/websocket'; // Adjust path
+import type { TranscriptionResult, StartMessage, EndMessage } from '@shared/types';
 
 const WS_URL = import.meta.env.VITE_BACKEND_WS_URL || "ws://localhost:3000";
 

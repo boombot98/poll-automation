@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { MicrophoneStreamer } from '../utils/microphoneStream';
 import type { TranscriptionResult } from '@shared/types';
-import '../App.css'; // Assuming you have some basic CSS in App.css
+import '../../App.css'; // Assuming you have some basic CSS in App.css
 interface GuestRecorderProps {
   setTranscriptions?: (results: TranscriptionResult[]) => void;
 }

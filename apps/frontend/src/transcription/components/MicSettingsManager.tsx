@@ -3,7 +3,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import MicControls from "./MicControls";
 import { MicrophoneStreamer } from "../utils/microphoneStream";
-import type { TranscriptionResult } from "../../../../shared/types/src/websocket";
+import type { TranscriptionResult } from "@shared/types";
 
 
 type MicSettingsManagerProps = {
