@@ -21,8 +21,10 @@ Both teams (transcription and web app) share this backend, using a modular struc
 apps/backend/
 ├── src/
 │   ├── transcription/        # Transcription module (real-time audio, Whisper integration)
+│   │   ├── websocket/        # WebSocket connection and message handling
+│   │   │   ├── connection.ts # WebSocket server setup and connection management
+│   │   │   └── handlers.ts   # Message handlers for client and Whisper communication
 │   │   ├── routes/           # Express routes (e.g., /transcription/*)
-│   │   ├── ws/               # WebSocket logic for audio streaming
 │   │   ├── services/         # Services for Whisper, MQ, etc.
 │   │   └── index.ts          # Transcription entry point
 │   ├── web/                  # Web app module (frontend APIs)
@@ -122,7 +124,7 @@ WHISPER_API_URL=http://localhost:8000/transcribe
 
 Since both transcription and web app teams work in `apps/backend`, follow these practices:
 - **Modular Code**:
-  - Transcription team: Use `src/transcription` for routes, WebSocket, and services.
+  - Transcription team: Use `src/transcription` for routes, WebSocket (in `websocket/` subdirectory), and services.
   - Web app team: Use `src/web` for APIs.
   - Shared utilities go in `src/common`.
 - **Dependencies**:
@@ -138,8 +140,8 @@ Since both transcription and web app teams work in `apps/backend`, follow these 
 ## Integration with Other Services
 
 - **Whisper Service (`services/whisper`)**:
-  - Communicates via HTTP (`/transcribe` endpoint) in Phase 1, transitioning to MQ (Kafka/RabbitMQ) in Phase 2.
-  - Expects base64-encoded audio chunks; returns transcriptions with timestamps.
+  - Now uses a modular architecture with separate modules for configuration, audio processing, transcription, and WebSocket handling.
+  - Communicates via WebSocket for real-time streaming; expects binary audio chunks and returns transcriptions with timestamps.
 - **AI Module (`services/pollgen-llm`)**:
   - Receives real-time transcription streams via WebSocket or MQ in Phase 3.
   - Uses `shared/types` for data contracts.
