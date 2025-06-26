@@ -1,8 +1,6 @@
 
-import UploadWAV from "./components/UploadWAV";
+import { UploadWAV, TranscriptListener, MicSettingsManager } from "./transcription";
 import { HostSettings } from "./components/HostSettings";
-import TranscriptListener from "./components/TranscriptListener";
-import MicSettingsManager from "./components/MicSettingsManager";
 
 function App() {
   return (

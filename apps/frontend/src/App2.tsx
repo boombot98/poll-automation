@@ -1,7 +1,7 @@
 // apps/frontend/src/App2.tsx
 import { BrowserRouter as Router, Routes, Route, Link, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
-import GuestRecorder from './components/GuestRecorder';
+import { GuestRecorder } from './transcription';
 import type { TranscriptionResult } from '@shared/types';
 import './App.css';
 
