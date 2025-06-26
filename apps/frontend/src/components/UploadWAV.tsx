@@ -1,8 +1,6 @@
-// Example React Component
 import React, { useState, useRef } from 'react';
-import { MicrophoneStreamer } from '../utils/microphoneStream'; // Adjust path as needed
-// Correct import for TranscriptionResult from the shared types
-import type { TranscriptionResult } from '../../../../shared/types/src/websocket'; // Adjust path based on monorepo
+import { MicrophoneStreamer } from '../utils/microphoneStream'; 
+import type { TranscriptionResult } from '../../../../shared/types/src/websocket';
 
 const LiveTranscriptionComponent: React.FC = () => {
     const [transcriptions, setTranscriptions] = useState<string[]>([]);
@@ -20,7 +18,7 @@ const LiveTranscriptionComponent: React.FC = () => {
 
     const sendTranscriptToServer = async (text: string) => {
     try {
-        const response = await fetch('/api/transcripts', {
+        const response = await fetch('http://localhost:3000/api/realtime', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -34,6 +32,9 @@ const LiveTranscriptionComponent: React.FC = () => {
             });
             if (!response.ok) {
                 console.error("Failed to send transcript:", await response.text());
+            }
+            else{
+                console.log("transcript sent to server");
             }
         } catch (err) {
             console.error("Error sending transcript:", err);
