@@ -16,16 +16,20 @@ logger = get_logger(__name__)
 async def websocket_endpoint(websocket: WebSocket):
     """
     Main WebSocket endpoint for handling transcription sessions.
-    
+
     Args:
         websocket: FastAPI WebSocket instance
     """
-    # Create new session
-    session_data = session_manager.create_session(websocket)
-    session_id = session_data["session_id"]
-    
+    logger.info(f"WebSocket connection attempt received from {websocket.client}")
+
     try:
+        # Accept the WebSocket connection first
         await websocket.accept()
+        logger.info(f"WebSocket connection accepted from {websocket.client}")
+
+        # Create new session after accepting
+        session_data = session_manager.create_session(websocket)
+        session_id = session_data["session_id"]
         
         # Start background tasks
         sender_task = asyncio.create_task(transcription_sender.send_transcriptions(session_data))

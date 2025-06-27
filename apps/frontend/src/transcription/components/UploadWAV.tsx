@@ -38,7 +38,7 @@ const LiveTranscriptionComponent: React.FC = () => {
   const startRecording = async () => {
     setTranscriptions([]); // Clear previous transcriptions
     streamerRef.current = new MicrophoneStreamer({
-      websocketUrl: "ws://localhost:8000/ws", // Or get it from props/env
+      websocketUrl: "ws://localhost:3000", // Backend WebSocket URL
       meetingId: meetingId,
       proposedSpeakerName: speaker,
       onTranscription: handleTranscription,

@@ -16,11 +16,51 @@ const tempAudioBufferMap = new Map<WebSocket, Buffer[]>();
 
 export const handleSocketMessage = async (clientWs: WebSocket, message: Buffer | string) => {
   try {
-    if (typeof message === 'string') {
-      const data: FrontendToServerMessage = JSON.parse(message);
-      console.log(`[Backend] Received JSON message from client: ${JSON.stringify(data.type)}`);
+    console.log(`[Backend] Received message type: ${typeof message}, length: ${message.length}`);
 
-      if (data.type === 'start') {
+    // Handle both string and Buffer messages that might contain JSON
+    let messageText: string;
+    if (typeof message === 'string') {
+      messageText = message;
+    } else if (Buffer.isBuffer(message)) {
+      // Try to parse as text first (might be JSON sent as Buffer)
+      try {
+        messageText = message.toString('utf8');
+        // Check if it looks like JSON
+        if (messageText.trim().startsWith('{') && messageText.trim().endsWith('}')) {
+          console.log(`[Backend] Converting Buffer to text message: ${messageText}`);
+        } else {
+          // It's binary audio data
+          throw new Error('Not JSON text');
+        }
+      } catch {
+        // It's definitely binary audio data
+        console.log(`[Backend] Processing binary audio data: ${message.length} bytes`);
+        const sessionMeta = connectionStore.getSessionMeta(clientWs);
+
+        if (!sessionMeta || !sessionMeta.whisperWs || sessionMeta.whisperWs.readyState !== WebSocket.OPEN) {
+          console.warn('[Backend] Received audio chunk for unknown or disconnected session. Buffering temporarily.');
+          const existing = tempAudioBufferMap.get(clientWs) || [];
+          existing.push(message);
+          tempAudioBufferMap.set(clientWs, existing);
+          return;
+        }
+
+        sessionMeta.whisperWs.send(message);
+        console.debug(`[Backend] Forwarded audio chunk of ${message.byteLength} bytes for ${sessionMeta.speaker}`);
+        return;
+      }
+    } else {
+      console.error(`[Backend] Unexpected message type: ${typeof message}`);
+      return;
+    }
+
+    // Process as JSON text message
+    console.log(`[Backend] Processing text message: ${messageText}`);
+    const data: FrontendToServerMessage = JSON.parse(messageText);
+    console.log(`[Backend] Parsed JSON message:`, data);
+
+    if (data.type === 'start') {
         const startData = data as StartMessage;
         const meetingId = startData.meetingId;
         const proposedSpeakerName = startData.proposedSpeakerName || 'AnonymousSpeaker';
@@ -35,7 +75,16 @@ export const handleSocketMessage = async (clientWs: WebSocket, message: Buffer |
         };
         connectionStore.setSessionMeta(clientWs, newSessionMeta);
 
-        await forwardToWhisper(clientWs, meetingId, assignedSpeakerId);
+        try {
+          await forwardToWhisper(clientWs, meetingId, assignedSpeakerId);
+        } catch (whisperError) {
+          console.error(`[Backend] Failed to connect to Whisper service:`, whisperError);
+          clientWs.send(JSON.stringify({
+            type: 'error',
+            message: 'Failed to connect to transcription service. Please ensure the Whisper service is running.'
+          }));
+          return;
+        }
 
         // ✅ Flush buffered audio chunks after whisper connects
         const bufferedChunks = tempAudioBufferMap.get(clientWs);
@@ -69,20 +118,7 @@ export const handleSocketMessage = async (clientWs: WebSocket, message: Buffer |
         clientWs.close();
       }
 
-    } else if (Buffer.isBuffer(message)) {
-      const sessionMeta = connectionStore.getSessionMeta(clientWs);
 
-      if (!sessionMeta || !sessionMeta.whisperWs || sessionMeta.whisperWs.readyState !== WebSocket.OPEN) {
-        console.warn('[Backend] Received audio chunk for unknown or disconnected session. Buffering temporarily.');
-        const existing = tempAudioBufferMap.get(clientWs) || [];
-        existing.push(message);
-        tempAudioBufferMap.set(clientWs, existing);
-        return;
-      }
-
-      sessionMeta.whisperWs.send(message);
-      console.debug(`[Backend] Forwarded audio chunk of ${message.byteLength} bytes for ${sessionMeta.speaker}`);
-    }
   } catch (error) {
     console.error('[Backend] Error handling message:', error);
     if (clientWs.readyState === WebSocket.OPEN) {
