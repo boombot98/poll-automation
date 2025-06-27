@@ -1,14 +1,20 @@
-from chunker import chunk_text
+from chunker import chunk_transcript
 from vector import insert_chunks, search
 from gemini import generate_poll
 
-with open("sample_transcript.txt", "r", encoding="utf-8") as f:
-    transcript = f.read()
+# Step 1: Load and chunk transcript
+chunks = chunk_transcript("transcript.json", chunk_size=30)
 
-chunks = chunk_text(transcript)
+# Step 2: Insert into vector store
 insert_chunks(chunks)
 
-context = " ".join(search("contextual question")[0])
-questions = generate_poll(context, "MCQ", "medium", 3)
+# Step 3: Query & generate questions
+context_chunks = search("Tourist destinations in India")
+context = " ".join(context_chunks)
+
+questions = generate_poll(context, question_type="MCQ", difficulty="medium", num_questions=3)
+
+# Step 4: Output
+print("\n📋 Generated Questions:\n")
 for i, q in enumerate(questions, 1):
-    print(f"Q{i}: {q}")
+    print(f" {q}")

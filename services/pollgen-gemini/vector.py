@@ -2,15 +2,15 @@ import chromadb
 from chromadb.utils import embedding_functions
 
 client = chromadb.Client()
-COLLECTION_NAME = "transcript_chunks"
-
-embedding_func = embedding_functions.SentenceTransformerEmbeddingFunction(model_name="all-MiniLM-L6-v2")
-collection = client.get_or_create_collection(name=COLLECTION_NAME, embedding_function=embedding_func)
+collection = client.get_or_create_collection(
+    name="poll_chunks",
+    embedding_function=embedding_functions.DefaultEmbeddingFunction()
+)
 
 def insert_chunks(chunks):
-    ids = [str(i) for i in range(len(chunks))]
+    ids = [f"id_{i}" for i in range(len(chunks))]
     collection.add(documents=chunks, ids=ids)
 
-def search(query, n_results=3):
-    result = collection.query(query_texts=[query], n_results=n_results)
-    return result["documents"]
+def search(query, top_k=3):
+    results = collection.query(query_texts=[query], n_results=top_k)
+    return results["documents"][0] if results["documents"] else []
