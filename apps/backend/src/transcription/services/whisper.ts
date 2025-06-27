@@ -52,7 +52,7 @@ export const forwardToWhisper = (clientWs: WebSocket, meetingId: string, speaker
       reject(new Error(`Whisper WebSocket closed: ${event.reason}`));
     };
 
-    whisperWs.onerror = (event: any) => {
+    whisperWs.onerror = (event: WebSocket.ErrorEvent) => {
       clearTimeout(connectionTimeout);
       console.error(`[WhisperService] Whisper WebSocket error for ${speaker}:`, event);
       handleWhisperError(clientWs, event?.error || new Error('Unknown Whisper WebSocket error'));
@@ -61,7 +61,7 @@ export const forwardToWhisper = (clientWs: WebSocket, meetingId: string, speaker
   });
 };
 
-export const transcribeAudioChunk = async (audioChunk: Buffer): Promise<any> => {
+export const transcribeAudioChunk = async (_audioChunk: Buffer): Promise<{ transcript: string; confidence: number }> => {
   console.warn("transcribeAudioChunk is deprecated for real-time streaming. Use WebSocket instead.");
   return Promise.resolve({ transcript: "Deprecated", confidence: 0 });
 };
