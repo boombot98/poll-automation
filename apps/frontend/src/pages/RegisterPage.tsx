@@ -85,19 +85,25 @@ const RegisterPage = () => {
         className="relative z-10 w-full max-w-xs sm:max-w-sm md:max-w-md lg:max-w-lg"
       >
         <GlassCard className="p-4 sm:p-6 md:p-8">
-          {/* Logo */}
-          <motion.div
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            transition={{ delay: 0.2 }}
-            className="text-center mb-4 sm:mb-6 md:mb-8"
-          >
-            <div className="w-10 h-10 sm:w-12 sm:h-12 md:w-16 md:h-16 bg-gradient-to-r from-primary-500 to-secondary-500 rounded-2xl flex items-center justify-center mx-auto mb-2 sm:mb-3 md:mb-4">
-              <Brain className="w-5 h-5 sm:w-6 sm:h-6 md:w-8 md:h-8 text-white" />
-            </div>
-            <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-white mb-1 sm:mb-2">Create Account</h1>
-            <p className="text-gray-400 text-xs sm:text-sm md:text-base">Join our AI-powered polling system</p>
-          </motion.div>
+  {/* Logo and Welcome Lines */}
+  <motion.div
+    initial={{ scale: 0 }}
+    animate={{ scale: 1 }}
+    transition={{ delay: 0.2 }}
+    className="text-center mb-4 sm:mb-6 md:mb-8"
+  >
+    <div className="w-10 h-10 sm:w-12 sm:h-12 md:w-16 md:h-16 bg-gradient-to-r from-primary-500 to-secondary-500 rounded-2xl flex items-center justify-center mx-auto mb-2 sm:mb-3 md:mb-4">
+      <Brain className="w-5 h-5 sm:w-6 sm:h-6 md:w-8 md:h-8 text-white" />
+    </div>
+    <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-white mb-1 sm:mb-2">Create Account</h1>
+    <p className="text-gray-400 text-xs sm:text-sm md:text-base">Join our AI-powered polling system</p>
+    {/* Beautiful lines for the user */}
+    <p className="mt-4 text-primary-300 text-xs sm:text-sm md:text-base italic font-medium">
+      Step into a smarter way to connect and collaborate.<br />
+      Experience seamless, interactive sessions powered by AI.<br />
+      Your journey to effortless engagement starts here!
+    </p>
+  </motion.div>
 
           {registerError && (
             <div className="mb-3 sm:mb-4 text-red-400 text-center text-xs sm:text-sm">{registerError}</div>
@@ -249,6 +255,33 @@ const RegisterPage = () => {
               )}
             </motion.button>
           </form>
+          {/* Social Register */}
+  <div className="mt-6">
+    <div className="flex items-center mb-4">
+      <div className="flex-grow border-t border-gray-700"></div>
+      <span className="mx-3 text-gray-400 text-xs">or sign up with</span>
+      <div className="flex-grow border-t border-gray-700"></div>
+    </div>
+    <div className="flex flex-col gap-3">
+      {/* Google Register - Backend OAuth endpoint needed */}
+      <a
+        href="/auth/google" // TODO: Replace with your backend Google OAuth endpoint
+        className="flex items-center justify-center gap-2 bg-white text-gray-800 font-semibold py-2 rounded-lg shadow hover:bg-gray-100 transition-all"
+      >
+        <img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Google" className="w-5 h-5" />
+        Sign up with Google
+      </a>
+      {/* LinkedIn Register - Backend OAuth endpoint needed */}
+      <a
+        href="/auth/linkedin" // TODO: Replace with your backend LinkedIn OAuth endpoint
+        className="flex items-center justify-center gap-2 bg-[#0077b5] text-white font-semibold py-2 rounded-lg shadow hover:bg-[#005983] transition-all"
+      >
+        <img src="https://www.svgrepo.com/show/448234/linkedin.svg" alt="LinkedIn" className="w-5 h-5 bg-white rounded" />
+        Sign up with LinkedIn
+      </a>
+      {/* Add more providers as needed */}
+    </div>
+  </div>
 
           {/* Links */}
           <div className="mt-3 sm:mt-4 md:mt-6 text-center">
