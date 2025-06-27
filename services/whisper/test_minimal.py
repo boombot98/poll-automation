@@ -32,3 +32,4 @@ async def websocket_endpoint(websocket: WebSocket):
 if __name__ == "__main__":
     print("Starting minimal WebSocket test server on port 8001...")
     uvicorn.run(app, host="127.0.0.1", port=8001, log_level="debug")
+    # This whole file works fine when run directly as a script, as you'd expect.
