@@ -184,11 +184,17 @@ export const handleWhisperClose = (clientWs: WebSocket, whisperWs: WebSocket) =>
 };
 
 export const handleWhisperError = (clientWs: WebSocket, error: unknown) => {
-  console.error('[Backend] Whisper WebSocket error:', error);
-  if (clientWs.readyState === WebSocket.OPEN) {
-    clientWs.send(JSON.stringify({
-      type: 'error',
-      message: `Transcription service error: ${error instanceof Error ? error.message : String(error)}`
-    }));
+  console.error(`[Whisper] WebSocket error:`, error);
+
+  try {
+    clientWs.send(
+      JSON.stringify({
+        type: 'error',
+        message: 'An error occurred while connecting to the transcription service.',
+      })
+    );
+  } catch (err) {
+    console.error('[Whisper] Failed to send error message to client:', err);
   }
 };
+
