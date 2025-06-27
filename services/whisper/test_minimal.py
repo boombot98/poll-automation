@@ -10,7 +10,7 @@ app = FastAPI()
 @app.get("/")
 async def root():
     return {"message": "Minimal WebSocket test server"}
-
+    # Simple root endpoint to verify the server is running
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     print(f"[MINIMAL] WebSocket connection attempt from {websocket.client}")
