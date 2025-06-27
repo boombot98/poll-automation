@@ -5,6 +5,7 @@ const WHISPER_SERVICE_URL = 'ws://localhost:8000';
 
 
 export const forwardToWhisper = (clientWs: WebSocket, meetingId: string, speaker: string): Promise<void> => {
+   try {
   return new Promise((resolve, reject) => {
     const whisperWs = new WebSocket(WHISPER_SERVICE_URL);
 
@@ -48,6 +49,9 @@ export const forwardToWhisper = (clientWs: WebSocket, meetingId: string, speaker
       reject(event?.error || new Error('Whisper WebSocket connection error'));
     };
   });
+}   catch (err) {
+    console.error(`[Whisper] Failed to forward to Whisper for "${speaker}" in meeting "${meetingId}":`, err);
+  }
 };
 
 export const transcribeAudioChunk = async (audioChunk: Buffer): Promise<any> => {
