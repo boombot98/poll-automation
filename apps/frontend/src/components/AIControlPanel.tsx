@@ -7,7 +7,7 @@ import { Settings, Save, RotateCcw, Zap } from "lucide-react"
 import GlassCard from "./GlassCard"
 import SourceToggle from "./controls/SourceToggle"
 import FrequencySelector from "./controls/FrequencySelector"
-import QuestionQuantitySlider from "./controls/QuestionQuantitySlider"
+import QuestionQuantitySlider from "./controls/QuestionQunatitySlider"
 import QuestionTypeSelector from "./controls/QuestionTypeSelector"
 import ContextRangeSelector from "./controls/ContextRangeSelector"
 
