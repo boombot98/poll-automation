@@ -7,7 +7,7 @@ const HomePage = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-dark-800 via-dark-900 to-dark-800 text-white flex items-center justify-center relative overflow-hidden px-4 sm:px-6 py-12 sm:py-16">
       {/* Join Meeting Button */}
-      <div className="absolute top-6 right-8 z-30 flex gap-3">
+      <div className="absolute top-6 right-8 z-30 flex flex-col gap-3 sm:flex-row sm:gap-3">
         <Link
           to="/login?redirect=create-poll"
           className="inline-flex items-center gap-2 bg-gradient-to-r from-green-500 to-green-400 hover:from-green-600 hover:to-green-500 text-white font-semibold px-5 py-2 rounded-xl shadow-lg transition-all duration-200 text-sm sm:text-base"
@@ -19,24 +19,6 @@ const HomePage = () => {
           className="inline-flex items-center gap-2 bg-gradient-to-r from-primary-500 to-secondary-500 hover:from-primary-600 hover:to-secondary-600 text-white font-semibold px-5 py-2 rounded-xl shadow-lg transition-all duration-200 text-sm sm:text-base"
         >
           Join Poll
-        </Link>
-        <Link
-          to="/login"
-          className="inline-flex items-center gap-2 bg-gradient-to-r from-purple-500 to-purple-400 hover:from-purple-600 hover:to-purple-500 text-white font-semibold px-5 py-2 rounded-xl shadow-lg transition-all duration-200 text-sm sm:text-base"
-        >
-          Login
-        </Link>
-        <Link
-          to="/register"
-          className="inline-flex items-center gap-2 bg-gradient-to-r from-yellow-500 to-yellow-400 hover:from-yellow-600 hover:to-yellow-500 text-white font-semibold px-5 py-2 rounded-xl shadow-lg transition-all duration-200 text-sm sm:text-base"
-        >
-          Sign-Up
-        </Link>
-        <Link
-          to="/contactUs"
-          className="inline-flex items-center gap-2 bg-gradient-to-r from-blue-500 to-blue-400 hover:from-blue-600 hover:to-blue-500 text-white font-semibold px-5 py-2 rounded-xl shadow-lg transition-all duration-200 text-sm sm:text-base"
-        >
-          Contact Us
         </Link>
       </div>
       {/* Glowing Orbs Background */}
@@ -51,13 +33,19 @@ const HomePage = () => {
       >
         <div className="mb-8 sm:mb-12">
           <motion.div
-            initial={{ rotate: -20, scale: 0 }}
-            animate={{ rotate: 0, scale: 1 }}
-            transition={{ delay: 0.3, duration: 0.6 }}
-            className="inline-block p-4 bg-gradient-to-br from-primary-500 to-secondary-500 rounded-2xl shadow-xl"
-          >
-            <Sparkles className="w-8 h-8 text-white" />
-          </motion.div>
+  initial={{ rotate: -20, scale: 0 }}
+  animate={{ rotate: 0, scale: 1 }}
+  transition={{ delay: 0.15, duration: 0.5 }}
+  whileHover={{
+    scale: 1.15,
+    rotate: [0, 10, -10, 0],
+    boxShadow: "0 0 40px 10px rgba(139,92,246,0.5), 0 0 80px 20px rgba(232,121,249,0.3)",
+    background: "linear-gradient(135deg, #a78bfa 0%, #f472b6 100%)"
+  }}
+  className="inline-block p-4 bg-gradient-to-br from-primary-500 to-secondary-500 rounded-2xl shadow-xl cursor-pointer transition-all duration-300"
+>
+  <Sparkles className="w-8 h-8 text-white drop-shadow-[0_0_8px_rgba(232,121,249,0.7)] transition-all duration-300" />
+</motion.div>
 
           <h1 className="text-3xl sm:text-5xl lg:text-6xl font-bold gradient-text mt-6 mb-4 leading-tight">
             Welcome to <span className="text-primary-400">Poll Automation</span>
@@ -127,6 +115,22 @@ const HomePage = () => {
             className="inline-block border border-white/20 hover:bg-white/10 px-6 py-3 rounded-xl font-semibold text-white text-center"
           >
             Create Account
+          </Link>
+        </div>
+        <div className="mt-6 flex justify-center">
+          <Link
+            to="/contactUs"
+            className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl font-semibold shadow-lg bg-gradient-to-r from-blue-500 via-blue-400 to-blue-500 hover:from-blue-600 hover:via-blue-500 hover:to-blue-600 text-white transition-all duration-200 text-base sm:text-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2"
+            style={{
+              minWidth: "160px",
+              justifyContent: "center",
+              boxShadow: "0 4px 24px 0 rgba(59,130,246,0.15)"
+            }}
+          >
+            <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 10.5V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h7.5M21 10.5l-9 5.25L3 10.5M21 10.5v7a2 2 0 0 1-2 2h-4.5" />
+            </svg>
+            <span className="font-semibold">Contact Us</span>
           </Link>
         </div>
       </motion.div>
