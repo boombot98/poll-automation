@@ -150,18 +150,7 @@ def generate_from_transcript():
     now = datetime.utcnow()
     questions_to_insert = []
     for q in questions:
-        enriched_question = {
-            "question": q.get("question"),
-            "options": q.get("options"),
-            "correct_answer": q.get("correct_answer"),
-            "explanation": q.get("explanation"),
-            "difficulty": q.get("difficulty"),
-            "concept": q.get("concept"),
-            "meeting_id": current_settings["meeting_id"],
-            "created_at": now,
-            "is_active": True,
-            "is_approved": False
-        }
+       
         questions_to_insert.append(enriched_question)
 
     try:
