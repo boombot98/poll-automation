@@ -104,3 +104,23 @@ AUDIO_PROCESSING_INTERVAL = float(os.getenv("AUDIO_PROCESSING_INTERVAL", 0.05))
 def get_logger(name: str) -> logging.Logger:
     """Get a logger with the specified name."""
     return logging.getLogger(name)
+
+# --- Scalability Settings ---
+# Maximum queue size before dropping new audio chunks
+MAX_QUEUE_SIZE = int(os.getenv("MAX_QUEUE_SIZE", 20))
+
+# Maximum processing time before considering a transcription "stuck"
+MAX_PROCESSING_TIME = int(os.getenv("MAX_PROCESSING_TIME", 30))
+
+# Number of worker processes (if using multiprocessing)
+NUM_WORKERS = int(os.getenv("NUM_WORKERS", 1))
+
+# Enable/disable multiprocessing
+ENABLE_MULTIPROCESSING = os.getenv("ENABLE_MULTIPROCESSING", "false").lower() == "true"
+
+# Queue backend (memory, redis)
+QUEUE_BACKEND = os.getenv("QUEUE_BACKEND", "memory")
+
+# Redis connection string (if using Redis)
+REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+
