@@ -49,7 +49,7 @@ async def websocket_endpoint(websocket: WebSocket):
         "transcript_queue": asyncio.Queue(),
         "shutdown_event": asyncio.Event(),
         "transcription_finished_event": asyncio.Event()
-    }
+    }  # End of session data initialization
 
     try:
         logger.info(f"[{session_id}] WebSocket connection attempt from {websocket.client}")
