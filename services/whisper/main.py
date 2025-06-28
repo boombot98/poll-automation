@@ -35,7 +35,60 @@ async def health_check():
     """Health check endpoint."""
     return {"status": "healthy", "service": "whisper-transcription"}
 
-# --- WebSocket Routes ---
+# --- HTTP Routes ---
+@app.get("/health")
+async def health_check():
+    """Health check endpoint."""
+    # Returns a JSON response indicating the service status
+    return {"status": "healthy", "service": "whisper-transcription"}
+
+@app.websocket("/")
+async def websocket_endpoint(websocket: WebSocket):
+    """Real-time transcription WebSocket endpoint."""
+    # Generate a unique session ID for each WebSocket connection
+    session_id = str(uuid.uuid4())
+    # Initialize session data with default values
+    session_data = {
+        "session_id": session_id,
+        "websocket": websocket,
+        "meeting_id": "N/A",
+        "speaker": "N/A",
+        "audio_buffer": io.BytesIO(),  # Buffer to store incoming audio data
+        "transcript_queue": asyncio.Queue(),  # Queue for storing transcription results
+        "shutdown_event": asyncio.Event(),  # Event to signal shutdown
+        "transcription_finished_event": asyncio.Event()  # Event to signal transcription completion
+    }
+
+    try:
+        # Log the connection attempt
+        logger.info(f"[{session_id}] WebSocket connection attempt from {websocket.client}")
+        await websocket.accept()  # Accept the WebSocket connection
+        # Log the successful connection
+        logger.info(f"[{session_id}] WebSocket connection accepted")
+
+        # Send a confirmation message to the client
+        await websocket.send_text(json.dumps({
+            "type": "status",
+            "message": "Connected to Whisper service"
+        }))
+
+        # Initialize the audio processor for handling audio data
+        processor = AudioProcessor(session_data)
+
+        # Main message loop to handle incoming WebSocket messages
+        while True:
+            try:
+                # Code for processing incoming messages will be here
+                pass
+            except WebSocketDisconnect:
+                # Handle WebSocket disconnection
+                logger.info(f"[{session_id}] WebSocket disconnected")
+                break
+            except Exception as e:
+                # Log any unexpected exceptions
+                logger.error(f"[{session_id}] Error: {e}")
+                break
+
 @app.websocket("/")
 async def websocket_endpoint(websocket: WebSocket):
     """Real-time transcription WebSocket endpoint."""
