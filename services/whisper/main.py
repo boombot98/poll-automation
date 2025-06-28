@@ -115,8 +115,7 @@ async def websocket_endpoint(websocket: WebSocket):
             "message": "Connected to Whisper service"
         }))
 
-        # Initialize audio processor
-        processor = AudioProcessor(session_data)
+       
 
         # Main message loop
         while True:
