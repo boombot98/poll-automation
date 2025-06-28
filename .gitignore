@@ -104,3 +104,6 @@ services/pollgen-llm/chroma_langchain_db
 *~
 apps/backend/transcriptions/
 services/whisper/transcriptions/
+services/whisper/test_minimal.py
+services/whisper/test_continuous.py
+services/whisper/test_audio.wav
